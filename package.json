@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "build": "rm -rf public && mkdir public && cp -r src/* public/ && cp src/assets/Favicon-Icons/favicon.ico public/"
+  }
+}
