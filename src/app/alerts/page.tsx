@@ -117,8 +117,24 @@ export default function AlertsPage() {
     },
   });
 
-  const isExpired = (expiresStr: string) => {
-    return new Date(expiresStr) < new Date();
+  const isExpired = (expiresStr: string | undefined) => {
+    if (!expiresStr) return false;
+    try {
+      return new Date(expiresStr) < new Date();
+    } catch {
+      return false;
+    }
+  };
+
+  const safeFormatDate = (dateStr: string | undefined) => {
+    if (!dateStr) return "N/A";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return format(date, "PPp");
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -255,9 +271,6 @@ export default function AlertsPage() {
                 <Badge>{activeAlert.alert_type}</Badge>
               </div>
               <p className="text-muted-foreground">{activeAlert.body}</p>
-              <p className="text-sm text-muted-foreground">
-                Expires: {format(new Date(activeAlert.expires), "PPp")}
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -296,7 +309,7 @@ export default function AlertsPage() {
                       <Badge variant="secondary">{alert.alert_type}</Badge>
                     </TableCell>
                     <TableCell>
-                      {format(new Date(alert.expires), "PPp")}
+                      {safeFormatDate(alert.expires)}
                     </TableCell>
                     <TableCell>
                       {isExpired(alert.expires) ? (
