@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Plus, Trash2, Bell, AlertTriangle, PartyPopper, Shield, FileText, Leaf } from "lucide-react";
 import { format } from "date-fns";
@@ -50,6 +51,9 @@ export default function AlertsPage() {
   const [body, setBody] = useState("");
   const [alertType, setAlertType] = useState<string>("info");
   const [expiresIn, setExpiresIn] = useState("24"); // hours
+  const [useCustomDate, setUseCustomDate] = useState(false);
+  const [customDate, setCustomDate] = useState("");
+  const [customTime, setCustomTime] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -65,8 +69,16 @@ export default function AlertsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + parseInt(expiresIn));
+      let expiryDate: Date;
+
+      if (useCustomDate && customDate && customTime) {
+        expiryDate = new Date(`${customDate}T${customTime}`);
+      } else if (useCustomDate && customDate) {
+        expiryDate = new Date(`${customDate}T23:59:59`);
+      } else {
+        expiryDate = new Date();
+        expiryDate.setHours(expiryDate.getHours() + parseInt(expiresIn));
+      }
 
       return api.sendAlert({
         title,
@@ -84,6 +96,9 @@ export default function AlertsPage() {
       setBody("");
       setAlertType("info");
       setExpiresIn("24");
+      setUseCustomDate(false);
+      setCustomDate("");
+      setCustomTime("");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -164,21 +179,54 @@ export default function AlertsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="expires">Expires In (hours)</Label>
-                <Select value={expiresIn} onValueChange={setExpiresIn}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 hour</SelectItem>
-                    <SelectItem value="6">6 hours</SelectItem>
-                    <SelectItem value="12">12 hours</SelectItem>
-                    <SelectItem value="24">24 hours</SelectItem>
-                    <SelectItem value="48">48 hours</SelectItem>
-                    <SelectItem value="168">1 week</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="customDate">Use custom date/time</Label>
+                  <Switch
+                    id="customDate"
+                    checked={useCustomDate}
+                    onCheckedChange={setUseCustomDate}
+                  />
+                </div>
+                {useCustomDate ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="date">Date</Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={customDate}
+                        onChange={(e) => setCustomDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="time">Time</Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={customTime}
+                        onChange={(e) => setCustomTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="expires">Expires In</Label>
+                    <Select value={expiresIn} onValueChange={setExpiresIn}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 hour</SelectItem>
+                        <SelectItem value="6">6 hours</SelectItem>
+                        <SelectItem value="12">12 hours</SelectItem>
+                        <SelectItem value="24">24 hours</SelectItem>
+                        <SelectItem value="48">48 hours</SelectItem>
+                        <SelectItem value="168">1 week</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <Button
                 className="w-full"

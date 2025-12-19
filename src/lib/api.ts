@@ -141,10 +141,10 @@ class CrowdCountAPI {
 
   async getActiveAlert(): Promise<Alert | null> {
     try {
-      const result = await this.fetch<{ alert: Alert | null; has_alert: boolean }>(
+      const result = await this.fetch<{ alert_info: Alert[] }>(
         "/get_active_alert"
       );
-      return result.has_alert ? result.alert : null;
+      return result.alert_info && result.alert_info.length > 0 ? result.alert_info[0] : null;
     } catch {
       return null;
     }

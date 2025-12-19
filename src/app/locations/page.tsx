@@ -40,12 +40,19 @@ const LocationMap = dynamic(
   }
 );
 
-const iconOptions = [
-  "default", "library", "gym", "restaurant", "store", "office", "school", "hospital"
-];
-
 const colorOptions = [
-  "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"
+  { name: "red", hex: "#ef4444" },
+  { name: "orange", hex: "#f97316" },
+  { name: "yellow", hex: "#eab308" },
+  { name: "green", hex: "#22c55e" },
+  { name: "mint", hex: "#34d399" },
+  { name: "teal", hex: "#14b8a6" },
+  { name: "cyan", hex: "#06b6d4" },
+  { name: "blue", hex: "#3b82f6" },
+  { name: "indigo", hex: "#6366f1" },
+  { name: "purple", hex: "#a855f7" },
+  { name: "pink", hex: "#ec4899" },
+  { name: "brown", hex: "#a16207" },
 ];
 
 export default function LocationsPage() {
@@ -54,8 +61,8 @@ export default function LocationsPage() {
   const [address, setAddress] = useState("");
   const [deviceId, setDeviceId] = useState("");
   const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedColor, setSelectedColor] = useState("#3b82f6");
-  const [selectedIcon, setSelectedIcon] = useState("default");
+  const [selectedColor, setSelectedColor] = useState("blue");
+  const [selectedIcon, setSelectedIcon] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -106,9 +113,14 @@ export default function LocationsPage() {
     setAddress("");
     setDeviceId("");
     setSelectedPosition(null);
-    setSelectedColor("#3b82f6");
-    setSelectedIcon("default");
+    setSelectedColor("blue");
+    setSelectedIcon("");
   }
+
+  // Helper to get hex from color name for display
+  const getHexFromName = (colorName: string) => {
+    return colorOptions.find(c => c.name === colorName)?.hex || "#3b82f6";
+  };
 
   return (
     <div className="space-y-8">
@@ -181,33 +193,26 @@ export default function LocationsPage() {
                   <div className="flex gap-2 flex-wrap">
                     {colorOptions.map((color) => (
                       <button
-                        key={color}
-                        onClick={() => setSelectedColor(color)}
+                        key={color.name}
+                        onClick={() => setSelectedColor(color.name)}
                         className={`w-8 h-8 rounded-full border-2 ${
-                          selectedColor === color ? "border-foreground" : "border-transparent"
+                          selectedColor === color.name ? "border-foreground" : "border-transparent"
                         }`}
-                        style={{ backgroundColor: color }}
+                        style={{ backgroundColor: color.hex }}
+                        title={color.name}
                       />
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground">Selected: {selectedColor}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Icon</Label>
-                  <div className="flex gap-2 flex-wrap">
-                    {iconOptions.map((icon) => (
-                      <button
-                        key={icon}
-                        onClick={() => setSelectedIcon(icon)}
-                        className={`px-3 py-1 rounded text-sm ${
-                          selectedIcon === icon
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        {icon}
-                      </button>
-                    ))}
-                  </div>
+                  <Label htmlFor="icon">Icon</Label>
+                  <Input
+                    id="icon"
+                    value={selectedIcon}
+                    onChange={(e) => setSelectedIcon(e.target.value)}
+                    placeholder="e.g., building, gym, library"
+                  />
                 </div>
               </div>
               <Button
@@ -257,7 +262,7 @@ export default function LocationsPage() {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: location.location_color }}
+                          style={{ backgroundColor: getHexFromName(location.location_color) || location.location_color }}
                         />
                         <span className="font-medium">{location.location_name}</span>
                       </div>
