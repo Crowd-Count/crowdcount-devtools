@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Clear any persisted password on mount
   useEffect(() => {
-    const savedPassword = localStorage.getItem("crowdcount_admin_password");
-    if (savedPassword) {
-      api.setAdminPassword(savedPassword);
-      verifyPassword(savedPassword);
-    } else {
-      setIsLoading(false);
-    }
+    localStorage.removeItem("crowdcount_admin_password");
   }, []);
+
+  // Set up session timeout
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set new timeout
+      timeoutRef.current = setTimeout(() => {
+        setIsAuthenticated(false);
+        api.setAdminPassword("");
+        toast.error("Session expired. Please log in again.");
+      }, SESSION_TIMEOUT_MS);
+
+      return () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+      };
+    }
+  }, [isAuthenticated]);
 
   async function verifyPassword(pwd: string) {
     setIsLoading(true);
@@ -30,8 +51,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       if (valid) {
         api.setAdminPassword(pwd);
         setIsAuthenticated(true);
+        toast.success("Logged in successfully");
       } else {
-        localStorage.removeItem("crowdcount_admin_password");
         toast.error("Invalid admin password");
       }
     } catch (error) {
@@ -45,14 +66,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     await verifyPassword(password);
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-muted-foreground">Connecting...</div>
-      </div>
-    );
-  }
-
   if (!isAuthenticated) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -60,7 +73,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <CardHeader>
             <CardTitle>CrowdCount DevTools</CardTitle>
             <CardDescription>
-              Enter your admin password to access the developer panel
+              Enter your admin password to access the developer panel.
+              Session expires after 10 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -73,10 +87,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter admin password"
+                  disabled={isLoading}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Verifying..." : "Login"}
               </Button>
             </form>
           </CardContent>

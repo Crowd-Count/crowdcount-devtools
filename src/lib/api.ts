@@ -7,15 +7,9 @@ class CrowdCountAPI {
 
   setAdminPassword(password: string) {
     this.adminPassword = password;
-    if (typeof window !== "undefined") {
-      localStorage.setItem("crowdcount_admin_password", password);
-    }
   }
 
   getAdminPassword(): string {
-    if (!this.adminPassword && typeof window !== "undefined") {
-      this.adminPassword = localStorage.getItem("crowdcount_admin_password") || "";
-    }
     return this.adminPassword;
   }
 
