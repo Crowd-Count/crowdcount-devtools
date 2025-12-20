@@ -30,6 +30,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Check,
   X,
@@ -41,6 +43,7 @@ import {
   ImageIcon,
   RefreshCw,
   MousePointerClick,
+  Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Ad } from "@/lib/types";
@@ -53,6 +56,16 @@ export default function AdsPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [adToReject, setAdToReject] = useState<Ad | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newAd, setNewAd] = useState({
+    title: "",
+    description: "",
+    device_id: "",
+    duration_hours: 24,
+    cta_text: "View Details",
+    cta_link_type: "default" as "default" | "custom",
+    cta_url: "",
+  });
 
   const queryClient = useQueryClient();
 
@@ -121,6 +134,41 @@ export default function AdsPage() {
     },
   });
 
+  const { data: devices } = useQuery({
+    queryKey: ["devices"],
+    queryFn: () => api.getAllDevices(),
+  });
+
+  const createAdminAdMutation = useMutation({
+    mutationFn: () => api.createAdminAd({
+      title: newAd.title,
+      description: newAd.description,
+      device_id: newAd.device_id,
+      duration_hours: newAd.duration_hours,
+      cta_text: newAd.cta_text,
+      cta_link_type: newAd.cta_link_type,
+      cta_url: newAd.cta_link_type === "custom" ? newAd.cta_url : undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allAds"] });
+      queryClient.invalidateQueries({ queryKey: ["adStats"] });
+      toast.success("Admin ad created successfully");
+      setCreateDialogOpen(false);
+      setNewAd({
+        title: "",
+        description: "",
+        device_id: "",
+        duration_hours: 24,
+        cta_text: "View Details",
+        cta_link_type: "default",
+        cta_url: "",
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const filteredAds = ads?.filter((ad) => {
     if (filter === "all") return true;
     return ad.status === filter;
@@ -163,14 +211,22 @@ export default function AdsPage() {
             Review and manage user-submitted advertisements
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => expireMutation.mutate()}
-          disabled={expireMutation.isPending}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Expire Old Ads
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Create Admin Ad
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => expireMutation.mutate()}
+            disabled={expireMutation.isPending}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Expire Old Ads
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-5">
@@ -538,6 +594,112 @@ export default function AdsPage() {
               disabled={rejectMutation.isPending}
             >
               Reject Ad
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Admin Ad Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Admin Ad</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="Ad title"
+                value={newAd.title}
+                onChange={(e) => setNewAd({ ...newAd, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Ad description"
+                value={newAd.description}
+                onChange={(e) => setNewAd({ ...newAd, description: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="device">Device</Label>
+              <Select
+                value={newAd.device_id}
+                onValueChange={(v) => setNewAd({ ...newAd, device_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a device" />
+                </SelectTrigger>
+                <SelectContent>
+                  {devices?.filter(d => d.user_id !== "Demo").map((device) => (
+                    <SelectItem key={device.user_id} value={device.user_id}>
+                      {device.user_id} ({device.status})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="duration">Duration (hours)</Label>
+              <Input
+                id="duration"
+                type="number"
+                min="1"
+                value={newAd.duration_hours}
+                onChange={(e) => setNewAd({ ...newAd, duration_hours: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cta_text">CTA Button Text</Label>
+              <Input
+                id="cta_text"
+                placeholder="View Details"
+                value={newAd.cta_text}
+                onChange={(e) => setNewAd({ ...newAd, cta_text: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cta_link_type">Link Type</Label>
+              <Select
+                value={newAd.cta_link_type}
+                onValueChange={(v: "default" | "custom") => setNewAd({ ...newAd, cta_link_type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default (in-app)</SelectItem>
+                  <SelectItem value="custom">Custom URL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newAd.cta_link_type === "custom" && (
+              <div className="space-y-2">
+                <Label htmlFor="cta_url">Custom URL</Label>
+                <Input
+                  id="cta_url"
+                  placeholder="https://..."
+                  value={newAd.cta_url}
+                  onChange={(e) => setNewAd({ ...newAd, cta_url: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createAdminAdMutation.mutate()}
+              disabled={createAdminAdMutation.isPending || !newAd.title || !newAd.description || !newAd.device_id}
+            >
+              Create Ad
             </Button>
           </DialogFooter>
         </DialogContent>

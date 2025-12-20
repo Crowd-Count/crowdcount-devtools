@@ -310,6 +310,25 @@ class CrowdCountAPI {
     const filename = imagePath.split("/").pop();
     return `${API_BASE}/ad-images/${filename}`;
   }
+
+  async createAdminAd(data: {
+    title: string;
+    description: string;
+    device_id: string;
+    duration_hours: number;
+    cta_text?: string;
+    cta_link_type?: "default" | "custom";
+    cta_url?: string;
+    image?: string;
+  }): Promise<{ success: boolean; ad_id: string; expiration_date: string }> {
+    return this.fetch("/create-admin-ad", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        ...data,
+      }),
+    });
+  }
 }
 
 export const api = new CrowdCountAPI();
