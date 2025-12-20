@@ -68,3 +68,35 @@ export interface CreateUserResponse {
     password: string;
   }[];
 }
+
+export interface Ad {
+  id: string;
+  title: string;
+  description: string;
+  image_path: string | null;
+  device_id: string;
+  duration_hours: number;
+  total_price: number;
+  cta_text: string;
+  cta_link_type: "default" | "custom";
+  cta_url: string | null;
+  payment_intent_id: string;
+  status: "pending_review" | "approved" | "rejected" | "expired";
+  rejection_reason: string | null;
+  created_at: string;
+  expiration_date: string;
+  approved_at: string | null;
+  submitted_at: string;
+  click_count: number;
+}
+
+export interface AdStats {
+  total: number;
+  pending_review: number;
+  approved: number;
+  rejected: number;
+  expired: number;
+  active: number;
+  total_revenue: number;
+  total_clicks: number;
+}

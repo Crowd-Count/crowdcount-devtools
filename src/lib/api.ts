@@ -1,4 +1,4 @@
-import type { Alert, Location, Report, Device, CreateUserResponse } from "./types";
+import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.crowdcount.tech";
 
@@ -209,6 +209,106 @@ class CrowdCountAPI {
         password,
       }),
     });
+  }
+
+  // Ads
+  async getAllAds(): Promise<Ad[]> {
+    const result = await this.fetch<{ ads: Ad[] }>(
+      this.withAuth("/get-ads")
+    );
+    return result.ads || [];
+  }
+
+  async getAdsByStatus(status: Ad["status"]): Promise<Ad[]> {
+    const result = await this.fetch<{ ads: Ad[] }>(
+      this.withAuth(`/get-ads?status=${status}`)
+    );
+    return result.ads || [];
+  }
+
+  async getPendingAds(): Promise<Ad[]> {
+    const result = await this.fetch<{ ads: Ad[] }>(
+      this.withAuth("/get-pending-ads")
+    );
+    return result.ads || [];
+  }
+
+  async getActiveAds(): Promise<Ad[]> {
+    const result = await this.fetch<{ ads: Ad[] }>("/get-active-ads");
+    return result.ads || [];
+  }
+
+  async getAd(adId: string): Promise<Ad | null> {
+    try {
+      const result = await this.fetch<{ ad: Ad }>(`/get-ad/${adId}`);
+      return result.ad || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async approveAd(adId: string): Promise<{ success: boolean }> {
+    return this.fetch("/approve-ad", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        ad_id: adId,
+      }),
+    });
+  }
+
+  async rejectAd(adId: string, reason: string = ""): Promise<{ success: boolean }> {
+    return this.fetch("/reject-ad", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        ad_id: adId,
+        reason,
+      }),
+    });
+  }
+
+  async deleteAd(adId: string): Promise<{ success: boolean }> {
+    return this.fetch("/delete-ad", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        ad_id: adId,
+      }),
+    });
+  }
+
+  async getAdStats(): Promise<AdStats> {
+    const result = await this.fetch<{ stats: AdStats }>(
+      this.withAuth("/ad-stats")
+    );
+    return result.stats;
+  }
+
+  async expireAds(): Promise<{ expired_count: number }> {
+    return this.fetch("/expire-ads", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+      }),
+    });
+  }
+
+  async cleanupAds(daysOld: number = 30): Promise<{ deleted_count: number }> {
+    return this.fetch("/cleanup-ads", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        days_old: daysOld,
+      }),
+    });
+  }
+
+  getAdImageUrl(imagePath: string | null): string | null {
+    if (!imagePath) return null;
+    // imagePath is stored as "ad_images/filename.jpg", extract just the filename
+    const filename = imagePath.split("/").pop();
+    return `${API_BASE}/ad-images/${filename}`;
   }
 }
 

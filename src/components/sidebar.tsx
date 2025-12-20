@@ -10,6 +10,7 @@ import {
   MapPin,
   Cpu,
   MessageSquare,
+  Megaphone,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Locations", href: "/locations", icon: MapPin },
   { name: "Devices", href: "/devices", icon: Cpu },
   { name: "Reports", href: "/reports", icon: MessageSquare },
+  { name: "Ads", href: "/ads", icon: Megaphone },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
