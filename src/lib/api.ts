@@ -112,9 +112,18 @@ class CrowdCountAPI {
   }
 
   async addLocation(location: Omit<Location, "location_current_count" | "location_comparison" | "location_overcrowding_count" | "device_breakdown">): Promise<{ status: string }> {
-    return this.fetch(this.withAuth("/add_location"), {
+    return this.fetch("/add_location", {
       method: "POST",
-      body: JSON.stringify(location),
+      body: JSON.stringify({
+        password: this.adminPassword,
+        name: location.location_name,
+        address: location.location_address,
+        device: location.location_device,
+        latitude: location.location_latitude,
+        longitude: location.location_longitude,
+        color: location.location_color,
+        icon: location.location_icon,
+      }),
     });
   }
 
