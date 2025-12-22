@@ -1,4 +1,4 @@
-import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats } from "./types";
+import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.crowdcount.tech";
 
@@ -337,6 +337,81 @@ class CrowdCountAPI {
         ...data,
       }),
     });
+  }
+
+  // Login Texts
+  async getLoginTextPool(): Promise<LoginText[]> {
+    const result = await this.fetch<{ texts: LoginText[]; count: number }>(
+      this.withAuth("/login-texts/pool")
+    );
+    return result.texts || [];
+  }
+
+  async addLoginText(text: string): Promise<{ success: boolean; id: string }> {
+    return this.fetch("/login-texts/pool", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        text,
+      }),
+    });
+  }
+
+  async updateLoginText(textId: string, text: string): Promise<{ success: boolean }> {
+    return this.fetch(`/login-texts/pool/${textId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        text,
+      }),
+    });
+  }
+
+  async deleteLoginText(textId: string): Promise<{ success: boolean }> {
+    return this.fetch(this.withAuth(`/login-texts/pool/${textId}`), {
+      method: "DELETE",
+    });
+  }
+
+  async toggleLoginTextActive(textId: string, active: boolean): Promise<{ success: boolean; active: boolean }> {
+    return this.fetch(`/login-texts/pool/${textId}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        active,
+      }),
+    });
+  }
+
+  async getTodayLoginText(): Promise<DailyLoginText | null> {
+    const result = await this.fetch<{ date: string; info: DailyLoginText | null }>(
+      this.withAuth("/login-texts/today")
+    );
+    return result.info;
+  }
+
+  async setLoginTextOverride(date: string, text: string): Promise<{ success: boolean }> {
+    return this.fetch("/login-texts/override", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        date,
+        text,
+      }),
+    });
+  }
+
+  async clearLoginTextOverride(date: string): Promise<{ success: boolean }> {
+    return this.fetch(this.withAuth(`/login-texts/override/${date}`), {
+      method: "DELETE",
+    });
+  }
+
+  async getUpcomingLoginTexts(days: number = 7): Promise<DailyLoginText[]> {
+    const result = await this.fetch<{ texts: DailyLoginText[] }>(
+      this.withAuth(`/login-texts/upcoming?days=${days}`)
+    );
+    return result.texts || [];
   }
 }
 

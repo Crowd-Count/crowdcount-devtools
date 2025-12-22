@@ -11,6 +11,7 @@ import {
   Cpu,
   MessageSquare,
   Megaphone,
+  Type,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Devices", href: "/devices", icon: Cpu },
   { name: "Reports", href: "/reports", icon: MessageSquare },
   { name: "Ads", href: "/ads", icon: Megaphone },
+  { name: "Login Texts", href: "/login-texts", icon: Type },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -100,3 +100,18 @@ export interface AdStats {
   total_revenue: number;
   total_clicks: number;
 }
+
+export interface LoginText {
+  id: string;
+  text: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface DailyLoginText {
+  date: string;
+  text: string | null;
+  text_id: string | null;
+  is_override: boolean;
+  selected_at: string | null;
+}
