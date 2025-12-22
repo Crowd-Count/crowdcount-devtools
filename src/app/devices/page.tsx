@@ -71,6 +71,18 @@ export default function DevicesPage() {
     },
   });
 
+  const statusMutation = useMutation({
+    mutationFn: ({ userId, status }: { userId: string; status: "online" | "offline" }) =>
+      api.setDeviceStatus(userId, status),
+    onSuccess: (_, { userId, status }) => {
+      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
+      toast.success(`${userId} set to ${status}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   const filteredDevices = devices?.filter((device) => {
     if (filter === "all") return true;
     return device.status === filter;
@@ -260,11 +272,18 @@ export default function DevicesPage() {
                     <TableCell>
                       <Badge
                         variant={device.status === "online" ? "default" : "secondary"}
-                        className={
+                        className={`cursor-pointer transition-colors ${
                           device.status === "online"
                             ? "bg-green-500 hover:bg-green-600"
-                            : ""
+                            : "hover:bg-muted-foreground/20"
+                        }`}
+                        onClick={() =>
+                          statusMutation.mutate({
+                            userId: device.user_id,
+                            status: device.status === "online" ? "offline" : "online",
+                          })
                         }
+                        title={`Click to set ${device.status === "online" ? "offline" : "online"}`}
                       >
                         {device.status === "online" ? (
                           <Wifi className="mr-1 h-3 w-3" />

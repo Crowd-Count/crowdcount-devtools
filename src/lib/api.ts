@@ -98,6 +98,17 @@ class CrowdCountAPI {
     });
   }
 
+  async setDeviceStatus(userId: string, status: "online" | "offline"): Promise<{ success: boolean }> {
+    return this.fetch("/admin/set_device_status", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        user_id: userId,
+        status,
+      }),
+    });
+  }
+
   // Locations
   async getAllLocations(): Promise<Location[]> {
     const result = await this.fetch<{ locations: Location[] }>("/get_all_locations");
