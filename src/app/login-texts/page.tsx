@@ -127,10 +127,19 @@ export default function LoginTextsPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  // Parse YYYY-MM-DD as local date (not UTC) to avoid timezone shift
+  const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const safeFormatDate = (dateStr: string | null) => {
     if (!dateStr) return "N/A";
     try {
-      const date = new Date(dateStr);
+      // Handle YYYY-MM-DD format as local date
+      const date = dateStr.match(/^\d{4}-\d{2}-\d{2}$/)
+        ? parseLocalDate(dateStr)
+        : new Date(dateStr);
       if (isNaN(date.getTime())) return dateStr;
       return format(date, "PP");
     } catch {
@@ -140,7 +149,10 @@ export default function LoginTextsPage() {
 
   const formatShortDate = (dateStr: string) => {
     try {
-      const date = new Date(dateStr);
+      // Handle YYYY-MM-DD format as local date
+      const date = dateStr.match(/^\d{4}-\d{2}-\d{2}$/)
+        ? parseLocalDate(dateStr)
+        : new Date(dateStr);
       if (isNaN(date.getTime())) return dateStr;
       return format(date, "EEE, MMM d");
     } catch {
