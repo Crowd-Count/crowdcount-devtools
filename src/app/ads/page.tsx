@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ import {
   RefreshCw,
   MousePointerClick,
   Plus,
+  Upload,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Ad } from "@/lib/types";
@@ -66,8 +67,74 @@ export default function AdsPage() {
     cta_link_type: "default" as "default" | "custom",
     cta_url: "",
   });
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryClient = useQueryClient();
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+
+      // Create an image to get dimensions and crop to square
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Calculate square crop from center
+        const size = Math.min(img.width, img.height);
+        const offsetX = (img.width - size) / 2;
+        const offsetY = (img.height - size) / 2;
+
+        // Set canvas to square dimensions (max 1024px for reasonable file size)
+        const outputSize = Math.min(size, 1024);
+        canvas.width = outputSize;
+        canvas.height = outputSize;
+
+        // Draw cropped square image
+        ctx.drawImage(
+          img,
+          offsetX, offsetY, size, size,  // source: center square
+          0, 0, outputSize, outputSize    // destination: full canvas
+        );
+
+        // Get the cropped image as data URL
+        const croppedDataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        setImagePreview(croppedDataUrl);
+
+        // Extract base64 data without the data URL prefix
+        const base64Data = croppedDataUrl.split(",")[1];
+        setImageBase64(base64Data);
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    setImagePreview(null);
+    setImageBase64(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const { data: ads, isLoading } = useQuery({
     queryKey: ["allAds"],
@@ -148,6 +215,7 @@ export default function AdsPage() {
       cta_text: newAd.cta_text,
       cta_link_type: newAd.cta_link_type,
       cta_url: newAd.cta_link_type === "custom" ? newAd.cta_url : undefined,
+      image: imageBase64 || undefined,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allAds"] });
@@ -163,6 +231,7 @@ export default function AdsPage() {
         cta_link_type: "default",
         cta_url: "",
       });
+      clearImage();
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -600,7 +669,10 @@ export default function AdsPage() {
       </Dialog>
 
       {/* Create Admin Ad Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        setCreateDialogOpen(open);
+        if (!open) clearImage();
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Admin Ad</DialogTitle>
@@ -623,6 +695,47 @@ export default function AdsPage() {
                 value={newAd.description}
                 onChange={(e) => setNewAd({ ...newAd, description: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Image (optional)</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full max-h-48 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={clearImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
+                >
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Click to upload an image
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Max 5MB
+                  </p>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="device">Device</Label>
