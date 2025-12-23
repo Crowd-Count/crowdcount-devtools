@@ -31,9 +31,15 @@ class CrowdCountAPI {
     return response.json();
   }
 
-  private withAuth(endpoint: string): string {
-    const separator = endpoint.includes("?") ? "&" : "?";
-    return `${endpoint}${separator}password=${encodeURIComponent(this.getAdminPassword())}`;
+  // Authenticated POST request with password in body (not URL)
+  private async authFetch<T>(endpoint: string, body: Record<string, unknown> = {}): Promise<T> {
+    return this.fetch(endpoint, {
+      method: "POST",
+      body: JSON.stringify({
+        ...body,
+        password: this.adminPassword,
+      }),
+    });
   }
 
   // Health & Status
@@ -44,7 +50,11 @@ class CrowdCountAPI {
   async checkAdminPassword(password: string): Promise<boolean> {
     try {
       const result = await this.fetch<{ is_password_correct: boolean }>(
-        `/check_admin_password?password=${encodeURIComponent(password)}`
+        "/check_admin_password",
+        {
+          method: "POST",
+          body: JSON.stringify({ password }),
+        }
       );
       return result.is_password_correct;
     } catch {
@@ -54,18 +64,16 @@ class CrowdCountAPI {
 
   // Dashboard Stats
   async getActiveCount(): Promise<number> {
-    const result = await this.fetch<{ active_count: number }>(
-      this.withAuth("/active_count")
-    );
+    const result = await this.authFetch<{ active_count: number }>("/active_count");
     return result.active_count;
   }
 
   async getDeviceCount(status?: "online" | "offline"): Promise<number> {
-    let endpoint = "/get_amount_of_devices";
+    const body: Record<string, unknown> = {};
     if (status) {
-      endpoint += `?status=${status}`;
+      body.status = status;
     }
-    const result = await this.fetch<{ amount: number }>(this.withAuth(endpoint));
+    const result = await this.authFetch<{ amount: number }>("/get_amount_of_devices", body);
     return result.amount;
   }
 
@@ -76,36 +84,26 @@ class CrowdCountAPI {
 
   // Devices
   async getAllDevices(): Promise<Device[]> {
-    const result = await this.fetch<{ devices: [string, string][] }>(
-      this.withAuth("/get_all_devices")
-    );
-    return result.devices.map(([user_id, status]) => ({
-      user_id,
+    const result = await this.authFetch<{ devices: [string, string][] }>("/get_all_devices");
+    return result.devices.map(([device_id, status]) => ({
+      device_id,
+      user_id: device_id,  // Compatibility
       status: status as "online" | "offline",
     }));
   }
 
   async createUsers(count: number = 1): Promise<CreateUserResponse> {
-    return this.fetch(this.withAuth("/create_user"), {
-      method: "POST",
-      body: JSON.stringify({ count }),
-    });
+    return this.authFetch("/create_user", { count });
   }
 
-  async deleteUser(userId: string): Promise<{ status: string }> {
-    return this.fetch(this.withAuth(`/delete_user?user_id=${userId}`), {
-      method: "DELETE",
-    });
+  async deleteUser(deviceId: string): Promise<{ status: string }> {
+    return this.authFetch(`/delete_user`, { device_id: deviceId });
   }
 
-  async setDeviceStatus(userId: string, status: "online" | "offline"): Promise<{ success: boolean }> {
-    return this.fetch("/admin/set_device_status", {
-      method: "POST",
-      body: JSON.stringify({
-        password: this.adminPassword,
-        user_id: userId,
-        status,
-      }),
+  async setDeviceStatus(deviceId: string, status: "online" | "offline"): Promise<{ success: boolean }> {
+    return this.authFetch("/admin/set_device_status", {
+      device_id: deviceId,
+      status,
     });
   }
 
@@ -139,17 +137,12 @@ class CrowdCountAPI {
   }
 
   async removeLocation(deviceId: string): Promise<{ status: string }> {
-    return this.fetch(this.withAuth("/remove_location"), {
-      method: "POST",
-      body: JSON.stringify({ location_device: deviceId }),
-    });
+    return this.authFetch("/remove_location", { location_device: deviceId });
   }
 
   // Alerts
   async getAllAlerts(): Promise<Alert[]> {
-    const result = await this.fetch<{ alerts: Alert[] }>(
-      this.withAuth("/get_all_alerts")
-    );
+    const result = await this.authFetch<{ alerts: Alert[] }>("/get_all_alerts");
     return result.alerts || [];
   }
 
@@ -180,16 +173,12 @@ class CrowdCountAPI {
 
   // Reports
   async getAllReports(): Promise<Report[]> {
-    const result = await this.fetch<{ reports: Report[] }>(
-      this.withAuth("/get_all_reports")
-    );
+    const result = await this.authFetch<{ reports: Report[] }>("/get_all_reports");
     return result.reports || [];
   }
 
   async getReportsByStatus(status: "pending" | "resolved"): Promise<Report[]> {
-    const result = await this.fetch<{ reports: Report[] }>(
-      this.withAuth(`/get_reports_for_status?status=${status}`)
-    );
+    const result = await this.authFetch<{ reports: Report[] }>("/get_reports_for_status", { status });
     return result.reports || [];
   }
 
@@ -233,23 +222,17 @@ class CrowdCountAPI {
 
   // Ads
   async getAllAds(): Promise<Ad[]> {
-    const result = await this.fetch<{ ads: Ad[] }>(
-      this.withAuth("/get-ads")
-    );
+    const result = await this.authFetch<{ ads: Ad[] }>("/get-ads");
     return result.ads || [];
   }
 
   async getAdsByStatus(status: Ad["status"]): Promise<Ad[]> {
-    const result = await this.fetch<{ ads: Ad[] }>(
-      this.withAuth(`/get-ads?status=${status}`)
-    );
+    const result = await this.authFetch<{ ads: Ad[] }>("/get-ads", { status });
     return result.ads || [];
   }
 
   async getPendingAds(): Promise<Ad[]> {
-    const result = await this.fetch<{ ads: Ad[] }>(
-      this.withAuth("/get-pending-ads")
-    );
+    const result = await this.authFetch<{ ads: Ad[] }>("/get-pending-ads");
     return result.ads || [];
   }
 
@@ -299,9 +282,7 @@ class CrowdCountAPI {
   }
 
   async getAdStats(): Promise<AdStats> {
-    const result = await this.fetch<{ stats: AdStats }>(
-      this.withAuth("/ad-stats")
-    );
+    const result = await this.authFetch<{ stats: AdStats }>("/ad-stats");
     return result.stats;
   }
 
@@ -352,9 +333,7 @@ class CrowdCountAPI {
 
   // Login Texts
   async getLoginTextPool(): Promise<LoginText[]> {
-    const result = await this.fetch<{ texts: LoginText[]; count: number }>(
-      this.withAuth("/login-texts/pool")
-    );
+    const result = await this.authFetch<{ texts: LoginText[]; count: number }>("/login-texts/pool/list");
     return result.texts || [];
   }
 
@@ -379,9 +358,7 @@ class CrowdCountAPI {
   }
 
   async deleteLoginText(textId: string): Promise<{ success: boolean }> {
-    return this.fetch(this.withAuth(`/login-texts/pool/${textId}`), {
-      method: "DELETE",
-    });
+    return this.authFetch("/login-texts/pool/delete", { text_id: textId });
   }
 
   async toggleLoginTextActive(textId: string, active: boolean): Promise<{ success: boolean; active: boolean }> {
@@ -395,9 +372,7 @@ class CrowdCountAPI {
   }
 
   async getTodayLoginText(): Promise<DailyLoginText | null> {
-    const result = await this.fetch<{ date: string; info: DailyLoginText | null }>(
-      this.withAuth("/login-texts/today")
-    );
+    const result = await this.authFetch<{ date: string; info: DailyLoginText | null }>("/login-texts/today");
     return result.info;
   }
 
@@ -413,15 +388,11 @@ class CrowdCountAPI {
   }
 
   async clearLoginTextOverride(date: string): Promise<{ success: boolean }> {
-    return this.fetch(this.withAuth(`/login-texts/override/${date}`), {
-      method: "DELETE",
-    });
+    return this.authFetch("/login-texts/override/clear", { date });
   }
 
   async getUpcomingLoginTexts(days: number = 7): Promise<DailyLoginText[]> {
-    const result = await this.fetch<{ texts: DailyLoginText[] }>(
-      this.withAuth(`/login-texts/upcoming?days=${days}`)
-    );
+    const result = await this.authFetch<{ texts: DailyLoginText[] }>("/login-texts/upcoming", { days });
     return result.texts || [];
   }
 }
