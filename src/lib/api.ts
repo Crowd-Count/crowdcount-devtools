@@ -194,16 +194,16 @@ class CrowdCountAPI {
   }
 
   async resolveReport(reportId: string): Promise<{ status: string }> {
-    return this.fetch(this.withAuth("/resolve_report"), {
+    return this.fetch("/resolve_report", {
       method: "POST",
-      body: JSON.stringify({ report_id: reportId }),
+      body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
     });
   }
 
   async deleteReport(reportId: string): Promise<{ status: string }> {
-    return this.fetch(this.withAuth("/delete_report"), {
+    return this.fetch("/delete_report", {
       method: "POST",
-      body: JSON.stringify({ report_id: reportId }),
+      body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
     });
   }
 
