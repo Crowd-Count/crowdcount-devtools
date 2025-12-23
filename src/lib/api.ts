@@ -165,16 +165,16 @@ class CrowdCountAPI {
   }
 
   async sendAlert(alert: Omit<Alert, "alert_id">): Promise<{ status: string; alert_id: string }> {
-    return this.fetch(this.withAuth("/send_alert"), {
+    return this.fetch("/send_alert", {
       method: "POST",
-      body: JSON.stringify(alert),
+      body: JSON.stringify({ ...alert, password: this.adminPassword }),
     });
   }
 
   async expireAlert(alertId: string): Promise<{ status: string }> {
-    return this.fetch(this.withAuth("/expire_alert"), {
+    return this.fetch("/expire_alert", {
       method: "POST",
-      body: JSON.stringify({ alert_id: alertId }),
+      body: JSON.stringify({ alert_id: alertId, password: this.adminPassword }),
     });
   }
 
