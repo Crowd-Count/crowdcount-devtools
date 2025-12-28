@@ -77,6 +77,7 @@ export interface Ad {
   description: string;
   image_path: string | null;
   device_id: string;
+  primary_device?: string; // The lead device for location matching (for grouped devices)
   duration_hours: number;
   total_price: number;
   cta_text: string;

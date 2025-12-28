@@ -415,7 +415,14 @@ export default function AdsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <code className="text-sm">{ad.device_id}</code>
+                      <div className="flex flex-col">
+                        <code className="text-sm">{ad.device_id}</code>
+                        {ad.primary_device && ad.primary_device !== ad.device_id && (
+                          <span className="text-xs text-muted-foreground">
+                            → {ad.primary_device}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{ad.duration_hours}h</TableCell>
                     <TableCell>${ad.total_price.toFixed(2)}</TableCell>
@@ -520,6 +527,11 @@ export default function AdsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Device</p>
                   <code className="font-medium">{selectedAd.device_id}</code>
+                  {selectedAd.primary_device && selectedAd.primary_device !== selectedAd.device_id && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Location: {selectedAd.primary_device}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Duration</p>
