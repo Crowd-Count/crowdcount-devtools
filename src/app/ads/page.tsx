@@ -759,8 +759,8 @@ export default function AdsPage() {
                   <SelectValue placeholder="Select a device" />
                 </SelectTrigger>
                 <SelectContent>
-                  {devices?.filter(d => d.user_id !== "Demo").map((device) => (
-                    <SelectItem key={device.user_id} value={device.user_id}>
+                  {devices?.filter(d => d.user_id && d.user_id !== "Demo").map((device) => (
+                    <SelectItem key={device.user_id} value={device.user_id!}>
                       {device.user_id} ({device.status})
                     </SelectItem>
                   ))}
