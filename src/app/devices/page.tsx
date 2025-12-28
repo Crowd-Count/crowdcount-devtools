@@ -36,7 +36,7 @@ import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu } from "lucide-react";
 export default function DevicesPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [createCount, setCreateCount] = useState("1");
-  const [createdUsers, setCreatedUsers] = useState<{ user_id: string; password: string }[]>([]);
+  const [createdUsers, setCreatedUsers] = useState<{ device_id: string; user_id?: string; password: string }[]>([]);
   const [filter, setFilter] = useState<"all" | "online" | "offline">("all");
 
   const queryClient = useQueryClient();
@@ -127,11 +127,11 @@ export default function DevicesPage() {
                 <div className="space-y-2 max-h-[300px] overflow-auto">
                   {createdUsers.map((user) => (
                     <div
-                      key={user.user_id}
+                      key={user.device_id}
                       className="flex items-center justify-between p-3 bg-muted rounded-lg"
                     >
                       <div>
-                        <p className="font-mono font-medium">{user.user_id}</p>
+                        <p className="font-mono font-medium">{user.device_id}</p>
                         <p className="font-mono text-sm text-muted-foreground">
                           {user.password}
                         </p>
@@ -140,7 +140,7 @@ export default function DevicesPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() =>
-                          copyToClipboard(`${user.user_id}:${user.password}`)
+                          copyToClipboard(`${user.device_id}:${user.password}`)
                         }
                       >
                         <Copy className="h-4 w-4" />
@@ -153,7 +153,7 @@ export default function DevicesPage() {
                   variant="outline"
                   onClick={() => {
                     const text = createdUsers
-                      .map((u) => `${u.user_id}:${u.password}`)
+                      .map((u) => `${u.device_id}:${u.password}`)
                       .join("\n");
                     copyToClipboard(text);
                   }}
