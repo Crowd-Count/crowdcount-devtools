@@ -263,7 +263,7 @@ export default function DevicesPage() {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => copyToClipboard(device.user_id)}
+                          onClick={() => copyToClipboard(device.user_id || "")}
                         >
                           <Copy className="h-3 w-3" />
                         </Button>
@@ -279,7 +279,7 @@ export default function DevicesPage() {
                         }`}
                         onClick={() =>
                           statusMutation.mutate({
-                            userId: device.user_id,
+                            userId: device.user_id || "",
                             status: device.status === "online" ? "offline" : "online",
                           })
                         }
@@ -297,7 +297,7 @@ export default function DevicesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteMutation.mutate(device.user_id)}
+                        onClick={() => deleteMutation.mutate(device.user_id || "")}
                         disabled={
                           deleteMutation.isPending ||
                           device.user_id === "Admin" ||
