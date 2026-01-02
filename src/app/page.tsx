@@ -126,7 +126,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-center gap-1">
                   <DollarSign className="h-4 w-4 text-green-500" />
                   <span className="text-2xl font-bold text-green-600">
-                    ${adStats?.total_revenue?.toFixed(0) || 0}
+                    {adStats?.total_revenue?.toFixed(0) || 0}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">Revenue</p>
