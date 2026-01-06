@@ -72,12 +72,12 @@ export default function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent>
-            {todayText ? (
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-medium italic">&quot;{todayText.text}&quot;</span>
-                {todayText.is_override && (
-                  <Badge variant="secondary">Override</Badge>
-                )}
+            {todayText?.text ? (
+              <div className="space-y-2">
+                <p className="text-lg font-medium italic">&quot;{todayText.text}&quot;</p>
+                <Badge variant={todayText.is_override ? "default" : "secondary"}>
+                  {todayText.is_override ? "Manual Override" : "From Pool"}
+                </Badge>
               </div>
             ) : (
               <p className="text-muted-foreground">No text set for today</p>
