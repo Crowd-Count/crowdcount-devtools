@@ -395,6 +395,22 @@ class CrowdCountAPI {
     const result = await this.authFetch<{ texts: DailyLoginText[] }>("/login-texts/upcoming", { days });
     return result.texts || [];
   }
+
+  // Promotion Pricing
+  async getPromotionPricing(): Promise<{ price_per_hour: number; currency: string }> {
+    return this.fetch("/get-promotion-pricing");
+  }
+
+  async setPromotionPricing(pricePerHour: number, currency: string = "USD"): Promise<{ success: boolean; price_per_hour: number; currency: string }> {
+    return this.fetch("/set-promotion-pricing", {
+      method: "POST",
+      body: JSON.stringify({
+        password: this.adminPassword,
+        price_per_hour: pricePerHour,
+        currency,
+      }),
+    });
+  }
 }
 
 export const api = new CrowdCountAPI();

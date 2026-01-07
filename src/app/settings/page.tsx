@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +10,39 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Save, LogOut, RefreshCw } from "lucide-react";
+import { Save, LogOut, RefreshCw, DollarSign, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const [apiUrl, setApiUrl] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState("30");
+  const [pricePerHour, setPricePerHour] = useState("");
+  const queryClient = useQueryClient();
+
+  // Fetch current promotion pricing
+  const { data: pricing, isLoading: pricingLoading } = useQuery({
+    queryKey: ["promotionPricing"],
+    queryFn: () => api.getPromotionPricing(),
+  });
+
+  // Update price per hour input when pricing data is loaded
+  useEffect(() => {
+    if (pricing?.price_per_hour !== undefined) {
+      setPricePerHour(pricing.price_per_hour.toString());
+    }
+  }, [pricing]);
+
+  // Mutation for updating pricing
+  const updatePricingMutation = useMutation({
+    mutationFn: (newPrice: number) => api.setPromotionPricing(newPrice),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["promotionPricing"] });
+      toast.success(`Promotion pricing updated to $${data.price_per_hour}/hour`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update pricing");
+    },
+  });
 
   useEffect(() => {
     setApiUrl(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
@@ -60,6 +88,88 @@ export default function SettingsPage() {
                 Set via NEXT_PUBLIC_API_URL environment variable
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Promotion Pricing
+            </CardTitle>
+            <CardDescription>
+              Configure the price per hour for promotions/ads
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pricingLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading pricing...
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="pricePerHour">Price per hour (USD)</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="pricePerHour"
+                        type="number"
+                        value={pricePerHour}
+                        onChange={(e) => setPricePerHour(e.target.value)}
+                        className="pl-7"
+                        placeholder="5.00"
+                        min="0.01"
+                        step="0.01"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        const price = parseFloat(pricePerHour);
+                        if (isNaN(price) || price <= 0) {
+                          toast.error("Please enter a valid price greater than 0");
+                          return;
+                        }
+                        updatePricingMutation.mutate(price);
+                      }}
+                      disabled={updatePricingMutation.isPending}
+                    >
+                      {updatePricingMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Update"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Price Examples</Label>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="rounded-md bg-muted p-2 text-center">
+                      <div className="font-medium">1 hour</div>
+                      <div className="text-muted-foreground">
+                        ${(parseFloat(pricePerHour) || 0).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted p-2 text-center">
+                      <div className="font-medium">12 hours</div>
+                      <div className="text-muted-foreground">
+                        ${((parseFloat(pricePerHour) || 0) * 12).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted p-2 text-center">
+                      <div className="font-medium">24 hours</div>
+                      <div className="text-muted-foreground">
+                        ${((parseFloat(pricePerHour) || 0) * 24).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
