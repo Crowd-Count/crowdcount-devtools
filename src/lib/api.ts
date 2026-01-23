@@ -1,4 +1,4 @@
-import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
+import type { Alert, Location, LocationDevice, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.crowdcount.tech";
 
@@ -120,19 +120,28 @@ class CrowdCountAPI {
     return result.locations || [];
   }
 
-  async addLocation(location: Omit<Location, "location_current_count" | "location_comparison" | "location_overcrowding_count" | "device_breakdown">): Promise<{ status: string }> {
+  async addLocation(
+    location: Omit<Location, "location_current_count" | "location_comparison" | "location_overcrowding_count" | "device_breakdown">,
+    additionalDevices?: LocationDevice[]
+  ): Promise<{ status: string }> {
+    const body: Record<string, unknown> = {
+      password: this.adminPassword,
+      name: location.location_name,
+      address: location.location_address,
+      device: location.location_device,
+      latitude: location.location_latitude,
+      longitude: location.location_longitude,
+      color: location.location_color,
+      icon: location.location_icon,
+    };
+
+    if (additionalDevices && additionalDevices.length > 0) {
+      body.devices = additionalDevices;
+    }
+
     return this.fetch("/add_location", {
       method: "POST",
-      body: JSON.stringify({
-        password: this.adminPassword,
-        name: location.location_name,
-        address: location.location_address,
-        device: location.location_device,
-        latitude: location.location_latitude,
-        longitude: location.location_longitude,
-        color: location.location_color,
-        icon: location.location_icon,
-      }),
+      body: JSON.stringify(body),
     });
   }
 

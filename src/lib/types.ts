@@ -6,6 +6,11 @@ export interface Device {
   status: "online" | "offline";
 }
 
+export interface LocationDevice {
+  id: string;
+  label: string;
+}
+
 export interface Location {
   location_name: string;
   location_address: string;

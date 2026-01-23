@@ -25,7 +25,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin } from "lucide-react";
+import { Plus, Trash2, MapPin, X } from "lucide-react";
+import type { LocationDevice } from "@/lib/types";
 
 // Dynamic import for map to avoid SSR issues
 const LocationMap = dynamic(
@@ -60,6 +61,8 @@ export default function LocationsPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [deviceId, setDeviceId] = useState("");
+  const [deviceLabel, setDeviceLabel] = useState("");
+  const [additionalCounters, setAdditionalCounters] = useState<LocationDevice[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedColor, setSelectedColor] = useState("blue");
   const [selectedIcon, setSelectedIcon] = useState("");
@@ -74,15 +77,26 @@ export default function LocationsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPosition) throw new Error("Please select a location on the map");
-      return api.addLocation({
-        location_name: name,
-        location_address: address,
-        location_device: deviceId,
-        location_latitude: selectedPosition.lat,
-        location_longitude: selectedPosition.lng,
-        location_color: selectedColor,
-        location_icon: selectedIcon,
-      });
+      // Build the list of additional devices (excluding the primary, filtering out empty IDs)
+      const validCounters = additionalCounters.filter((c) => c.id.trim() !== "");
+      const additionalDevices = validCounters.length > 0
+        ? validCounters.map((c) => ({
+            id: c.id.trim(),
+            label: c.label.trim() || `Counter ${validCounters.indexOf(c) + 2}`,
+          }))
+        : undefined;
+      return api.addLocation(
+        {
+          location_name: name,
+          location_address: address,
+          location_device: deviceId,
+          location_latitude: selectedPosition.lat,
+          location_longitude: selectedPosition.lng,
+          location_color: selectedColor,
+          location_icon: selectedIcon,
+        },
+        additionalDevices
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
@@ -112,9 +126,25 @@ export default function LocationsPage() {
     setName("");
     setAddress("");
     setDeviceId("");
+    setDeviceLabel("");
+    setAdditionalCounters([]);
     setSelectedPosition(null);
     setSelectedColor("blue");
     setSelectedIcon("");
+  }
+
+  function addCounter() {
+    setAdditionalCounters([...additionalCounters, { id: "", label: "" }]);
+  }
+
+  function removeCounter(index: number) {
+    setAdditionalCounters(additionalCounters.filter((_, i) => i !== index));
+  }
+
+  function updateCounter(index: number, field: "id" | "label", value: string) {
+    const updated = [...additionalCounters];
+    updated[index] = { ...updated[index], [field]: value };
+    setAdditionalCounters(updated);
   }
 
   // Helper to get hex from color name for display
@@ -154,24 +184,101 @@ export default function LocationsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="device">Device ID</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Input
-                    id="device"
-                    value={deviceId}
-                    onChange={(e) => setDeviceId(e.target.value)}
-                    placeholder="e.g., A1234"
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g., 123 Main Street"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g., 123 Main Street"
-                />
+
+              {/* Counters Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Counters</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCounter}
+                  >
+                    <Plus className="mr-1 h-3 w-3" />
+                    Add Counter
+                  </Button>
+                </div>
+
+                {/* Primary Counter */}
+                <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
+                  <div className="space-y-1">
+                    <Label htmlFor="device" className="text-xs text-muted-foreground">
+                      Primary Counter ID
+                    </Label>
+                    <Input
+                      id="device"
+                      value={deviceId}
+                      onChange={(e) => setDeviceId(e.target.value)}
+                      placeholder="e.g., A1234"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="deviceLabel" className="text-xs text-muted-foreground">
+                      Label (optional)
+                    </Label>
+                    <Input
+                      id="deviceLabel"
+                      value={deviceLabel}
+                      onChange={(e) => setDeviceLabel(e.target.value)}
+                      placeholder="e.g., Main Entrance"
+                    />
+                  </div>
+                </div>
+
+                {/* Additional Counters */}
+                {additionalCounters.map((counter, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-3 border rounded-lg">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Counter ID
+                      </Label>
+                      <Input
+                        value={counter.id}
+                        onChange={(e) => updateCounter(index, "id", e.target.value)}
+                        placeholder="e.g., B5678"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Label
+                      </Label>
+                      <Input
+                        value={counter.label}
+                        onChange={(e) => updateCounter(index, "label", e.target.value)}
+                        placeholder="e.g., Side Entrance"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeCounter(index)}
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                {additionalCounters.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {additionalCounters.length + 1} counter{additionalCounters.length > 0 ? "s" : ""} total. Counts will be aggregated for this location.
+                  </p>
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Click on map to set location</Label>
                 <div className="h-[250px] rounded-lg overflow-hidden border">
@@ -249,7 +356,7 @@ export default function LocationsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Address</TableHead>
-                  <TableHead>Device</TableHead>
+                  <TableHead>Counters</TableHead>
                   <TableHead>Current Count</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
@@ -269,7 +376,14 @@ export default function LocationsPage() {
                     </TableCell>
                     <TableCell>{location.location_address}</TableCell>
                     <TableCell>
-                      <code className="text-sm">{location.location_device}</code>
+                      <div className="flex items-center gap-2">
+                        <code className="text-sm">{location.location_device}</code>
+                        {location.device_breakdown && location.device_breakdown.length > 1 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{location.device_breakdown.length - 1} more
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
