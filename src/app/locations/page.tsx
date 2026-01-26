@@ -25,8 +25,8 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, X } from "lucide-react";
-import type { LocationDevice } from "@/lib/types";
+import { Plus, Trash2, MapPin, X, Edit2 } from "lucide-react";
+import type { LocationDevice, Location } from "@/lib/types";
 
 // Dynamic import for map to avoid SSR issues
 const LocationMap = dynamic(
@@ -58,6 +58,8 @@ const colorOptions = [
 
 export default function LocationsPage() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [deviceId, setDeviceId] = useState("");
@@ -121,8 +123,51 @@ export default function LocationsPage() {
     },
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPosition) throw new Error("Please select a location on the map");
+      if (!editingLocation) throw new Error("No location selected for editing");
+
+      // First, delete the old location
+      await api.removeLocation(editingLocation.location_device);
+
+      // Then create the new one with updated info
+      const validCounters = additionalCounters.filter((c) => c.id.trim() !== "");
+      const additionalDevices = validCounters.length > 0
+        ? validCounters.map((c) => ({
+            id: c.id.trim(),
+            label: c.label.trim() || `Counter ${validCounters.indexOf(c) + 2}`,
+          }))
+        : undefined;
+
+      return api.addLocation(
+        {
+          location_name: name,
+          location_address: address,
+          location_device: deviceId,
+          location_latitude: selectedPosition.lat,
+          location_longitude: selectedPosition.lng,
+          location_color: selectedColor,
+          location_icon: selectedIcon,
+        },
+        additionalDevices
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+      toast.success("Location updated successfully");
+      resetForm();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   function resetForm() {
     setIsOpen(false);
+    setIsEditing(false);
+    setEditingLocation(null);
     setName("");
     setAddress("");
     setDeviceId("");
@@ -131,6 +176,31 @@ export default function LocationsPage() {
     setSelectedPosition(null);
     setSelectedColor("blue");
     setSelectedIcon("");
+  }
+
+  function openEditDialog(location: Location) {
+    setIsEditing(true);
+    setEditingLocation(location);
+    setName(location.location_name);
+    setAddress(location.location_address);
+    setDeviceId(location.location_device);
+    // Set device label from the first entry in device_breakdown if available
+    if (location.device_breakdown && location.device_breakdown.length > 0) {
+      setDeviceLabel(location.device_breakdown[0].device_label || "");
+      // Load additional counters (skip the first one as it's the primary)
+      const additional = location.device_breakdown.slice(1).map((d) => ({
+        id: d.device_id,
+        label: d.device_label,
+      }));
+      setAdditionalCounters(additional);
+    } else {
+      setDeviceLabel("");
+      setAdditionalCounters([]);
+    }
+    setSelectedPosition({ lat: location.location_latitude, lng: location.location_longitude });
+    setSelectedColor(location.location_color || "blue");
+    setSelectedIcon(location.location_icon || "");
+    setIsOpen(true);
   }
 
   function addCounter() {
@@ -161,7 +231,10 @@ export default function LocationsPage() {
             Manage map locations and device assignments
           </p>
         </div>
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={(open) => {
+          if (!open) resetForm();
+          else setIsOpen(open);
+        }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -170,7 +243,7 @@ export default function LocationsPage() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add New Location</DialogTitle>
+              <DialogTitle>{isEditing ? "Edit Location" : "Add New Location"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
@@ -324,10 +397,12 @@ export default function LocationsPage() {
               </div>
               <Button
                 className="w-full"
-                onClick={() => createMutation.mutate()}
-                disabled={!name || !deviceId || !selectedPosition || createMutation.isPending}
+                onClick={() => isEditing ? editMutation.mutate() : createMutation.mutate()}
+                disabled={!name || !deviceId || !selectedPosition || createMutation.isPending || editMutation.isPending}
               >
-                {createMutation.isPending ? "Adding..." : "Add Location"}
+                {isEditing
+                  ? (editMutation.isPending ? "Saving..." : "Save Changes")
+                  : (createMutation.isPending ? "Adding..." : "Add Location")}
               </Button>
             </div>
           </DialogContent>
@@ -410,14 +485,24 @@ export default function LocationsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => deleteMutation.mutate(location.location_device)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(location)}
+                          disabled={editMutation.isPending}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMutation.mutate(location.location_device)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
