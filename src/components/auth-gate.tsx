@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -74,7 +74,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             <CardTitle>CrowdCount DevTools</CardTitle>
             <CardDescription>
               Enter your admin password to access the developer panel.
-              Session expires after 10 minutes.
+              Session expires after 30 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent>
