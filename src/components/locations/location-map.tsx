@@ -61,7 +61,7 @@ export function LocationMap({ locations, onLocationClick, selectedPosition }: Lo
 
   const center = locations.length > 0
     ? [locations[0].location_latitude, locations[0].location_longitude] as [number, number]
-    : [40.7128, -74.006] as [number, number]; // Default to NYC
+    : [40.0150, -105.2705] as [number, number]; // Default to Boulder, CO
 
   return (
     <MapContainer
