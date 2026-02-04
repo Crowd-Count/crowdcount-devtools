@@ -96,6 +96,18 @@ class CrowdCountAPI {
     return this.authFetch("/create_user", { count });
   }
 
+  async createDeviceWithCredentials(deviceId: string, devicePassword: string): Promise<{
+    success: boolean;
+    device_id: string;
+    status: string;
+    message: string;
+  }> {
+    return this.authFetch("/admin/create_device", {
+      device_id: deviceId,
+      device_password: devicePassword,
+    });
+  }
+
   async deleteUser(deviceId: string): Promise<{ status: string }> {
     return this.authFetch(`/delete_user`, { device_id: deviceId });
   }

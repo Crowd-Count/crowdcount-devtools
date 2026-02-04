@@ -29,15 +29,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu, UserPlus } from "lucide-react";
 
 export default function DevicesPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [createCount, setCreateCount] = useState("1");
   const [createdUsers, setCreatedUsers] = useState<{ device_id: string; user_id?: string; password: string }[]>([]);
   const [filter, setFilter] = useState<"all" | "online" | "offline">("all");
+  const [customDeviceId, setCustomDeviceId] = useState("");
+  const [customPassword, setCustomPassword] = useState("");
+  const [createMode, setCreateMode] = useState<"auto" | "custom">("auto");
 
   const queryClient = useQueryClient();
 
@@ -53,6 +62,21 @@ export default function DevicesPage() {
       queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
       setCreatedUsers(data.users || []);
       toast.success(`Created ${data.users?.length || 0} user(s)`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const createCustomMutation = useMutation({
+    mutationFn: () => api.createDeviceWithCredentials(customDeviceId, customPassword),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
+      queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
+      setCreatedUsers([{ device_id: data.device_id, password: customPassword }]);
+      setCustomDeviceId("");
+      setCustomPassword("");
+      toast.success(`Device "${data.device_id}" created successfully`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -107,7 +131,12 @@ export default function DevicesPage() {
         </div>
         <Dialog open={isOpen} onOpenChange={(open) => {
           setIsOpen(open);
-          if (!open) setCreatedUsers([]);
+          if (!open) {
+            setCreatedUsers([]);
+            setCustomDeviceId("");
+            setCustomPassword("");
+            setCreateMode("auto");
+          }
         }}>
           <DialogTrigger asChild>
             <Button>
@@ -117,7 +146,7 @@ export default function DevicesPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Devices</DialogTitle>
+              <DialogTitle>Create New Device</DialogTitle>
             </DialogHeader>
             {createdUsers.length > 0 ? (
               <div className="space-y-4 pt-4">
@@ -166,30 +195,65 @@ export default function DevicesPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="count">Number of devices to create</Label>
-                  <Select value={createCount} onValueChange={setCreateCount}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 5, 10, 25, 50].map((n) => (
-                        <SelectItem key={n} value={n.toString()}>
-                          {n} device{n > 1 ? "s" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={() => createMutation.mutate()}
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? "Creating..." : "Create Devices"}
-                </Button>
-              </div>
+              <Tabs value={createMode} onValueChange={(v) => setCreateMode(v as "auto" | "custom")} className="pt-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="auto">Auto-Generate</TabsTrigger>
+                  <TabsTrigger value="custom">Custom Credentials</TabsTrigger>
+                </TabsList>
+                <TabsContent value="auto" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="count">Number of devices to create</Label>
+                    <Select value={createCount} onValueChange={setCreateCount}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 5, 10, 25, 50].map((n) => (
+                          <SelectItem key={n} value={n.toString()}>
+                            {n} device{n > 1 ? "s" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => createMutation.mutate()}
+                    disabled={createMutation.isPending}
+                  >
+                    {createMutation.isPending ? "Creating..." : "Create Devices"}
+                  </Button>
+                </TabsContent>
+                <TabsContent value="custom" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="deviceId">Device ID</Label>
+                    <Input
+                      id="deviceId"
+                      placeholder="e.g., MainEntrance, Lobby1"
+                      value={customDeviceId}
+                      onChange={(e) => setCustomDeviceId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="devicePassword">Password</Label>
+                    <Input
+                      id="devicePassword"
+                      type="password"
+                      placeholder="Device password"
+                      value={customPassword}
+                      onChange={(e) => setCustomPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => createCustomMutation.mutate()}
+                    disabled={createCustomMutation.isPending || !customDeviceId || !customPassword}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {createCustomMutation.isPending ? "Creating..." : "Create Device"}
+                  </Button>
+                </TabsContent>
+              </Tabs>
             )}
           </DialogContent>
         </Dialog>
