@@ -32,28 +32,43 @@ function loadAndInitMapKit(): Promise<void> {
   if (mapkitLoadPromise) return mapkitLoadPromise;
 
   mapkitLoadPromise = new Promise<void>((resolve, reject) => {
+    // Already loaded (e.g. navigated back to page)
     if (typeof window !== "undefined" && typeof mapkit !== "undefined") {
       if (!mapkitInitialized) {
-        mapkit.init({
-          authorizationCallback: (done) => done(MAPKIT_TOKEN),
-        });
-        mapkitInitialized = true;
+        try {
+          mapkit.init({
+            authorizationCallback: (done) => done(MAPKIT_TOKEN),
+          });
+          mapkitInitialized = true;
+        } catch (e) {
+          console.error("MapKit init error:", e);
+          reject(e);
+          return;
+        }
       }
       resolve();
       return;
     }
 
     const script = document.createElement("script");
-    script.src = "https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js";
+    script.src = "https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js";
     script.crossOrigin = "anonymous";
     script.onload = () => {
-      mapkit.init({
-        authorizationCallback: (done) => done(MAPKIT_TOKEN),
-      });
-      mapkitInitialized = true;
-      resolve();
+      try {
+        mapkit.init({
+          authorizationCallback: (done) => done(MAPKIT_TOKEN),
+        });
+        mapkitInitialized = true;
+        resolve();
+      } catch (e) {
+        console.error("MapKit init error:", e);
+        reject(e);
+      }
     };
-    script.onerror = () => reject(new Error("Failed to load MapKit JS"));
+    script.onerror = () => {
+      console.error("Failed to load MapKit JS script");
+      reject(new Error("Failed to load MapKit JS"));
+    };
     document.head.appendChild(script);
   });
 
@@ -76,28 +91,39 @@ export function LocationMap({
   const annotationsRef = useRef<mapkit.MarkerAnnotation[]>([]);
   const selectedMarkerRef = useRef<mapkit.MarkerAnnotation | null>(null);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Load MapKit JS and create the map
   useEffect(() => {
     let destroyed = false;
 
-    loadAndInitMapKit().then(() => {
-      if (destroyed || !containerRef.current) return;
+    loadAndInitMapKit()
+      .then(() => {
+        if (destroyed || !containerRef.current) return;
 
-      const defaultCenter = new mapkit.Coordinate(40.015, -105.2705);
+        const defaultCenter = new mapkit.Coordinate(40.015, -105.2705);
 
-      const map = new mapkit.Map(containerRef.current, {
-        center: defaultCenter,
-        region: new mapkit.CoordinateRegion(
-          defaultCenter,
-          new mapkit.CoordinateSpan(0.05, 0.05)
-        ),
-        colorScheme: mapkit.Map.ColorSchemes.Dark,
+        const map = new mapkit.Map(containerRef.current, {
+          center: defaultCenter,
+          region: new mapkit.CoordinateRegion(
+            defaultCenter,
+            new mapkit.CoordinateSpan(0.05, 0.05)
+          ),
+          colorScheme: mapkit.Map.ColorSchemes.Dark,
+        });
+
+        mapRef.current = map;
+        setReady(true);
+      })
+      .catch((e) => {
+        console.error("MapKit load error:", e);
+        setError(
+          "Failed to load Apple Maps. " +
+            (window.location.hostname === "localhost"
+              ? "The MapKit token is restricted to devtools.crowdcount.tech — it won't work on localhost."
+              : String(e))
+        );
       });
-
-      mapRef.current = map;
-      setReady(true);
-    });
 
     return () => {
       destroyed = true;
@@ -209,10 +235,19 @@ export function LocationMap({
     }
   }, [ready, selectedPosition]);
 
+  if (error) {
+    return (
+      <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-lg">
+        <p className="text-sm text-muted-foreground px-4 text-center">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
-      className="h-[400px] w-full rounded-lg z-0"
+      style={{ height: 400, width: "100%" }}
+      className="rounded-lg z-0"
     />
   );
 }

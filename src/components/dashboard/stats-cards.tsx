@@ -56,6 +56,11 @@ export function StatsCards() {
     queryFn: () => api.getReportsByStatus("pending"),
   });
 
+  const { data: pingResult } = useQuery({
+    queryKey: ["apiPing"],
+    queryFn: () => api.pingWithLatency(),
+  });
+
   const stats = [
     {
       title: "Active App Users",
@@ -111,10 +116,10 @@ export function StatsCards() {
     },
     {
       title: "API Status",
-      value: "Online",
+      value: pingResult ? `${pingResult.latencyMs}ms` : "-",
       icon: Activity,
-      description: "Server connection",
-      badge: "Healthy",
+      description: "Server response time",
+      badge: pingResult ? "Online" : undefined,
       badgeVariant: "default" as const,
     },
   ];

@@ -79,6 +79,8 @@ export default function DashboardPage() {
                   {todayText.is_override ? "Manual Override" : "From Pool"}
                 </Badge>
               </div>
+            ) : todayText ? (
+              <p className="text-muted-foreground">Not selected yet</p>
             ) : (
               <p className="text-muted-foreground">No text set for today</p>
             )}

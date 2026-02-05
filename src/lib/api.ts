@@ -47,6 +47,13 @@ class CrowdCountAPI {
     return this.fetch("/ping");
   }
 
+  async pingWithLatency(): Promise<{ status: string; latencyMs: number }> {
+    const start = performance.now();
+    const result = await this.fetch<{ status: string }>("/ping");
+    const latencyMs = Math.round(performance.now() - start);
+    return { ...result, latencyMs };
+  }
+
   async checkAdminPassword(password: string): Promise<boolean> {
     try {
       const result = await this.fetch<{ is_password_correct: boolean }>(
