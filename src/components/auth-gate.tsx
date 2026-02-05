@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
+import { SESSION_TIMEOUT_MS, setSessionExpiry, clearSessionExpiry } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,9 +29,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       }
 
       // Set new timeout
+      setSessionExpiry();
       timeoutRef.current = setTimeout(() => {
         setIsAuthenticated(false);
         api.setAdminPassword("");
+        clearSessionExpiry();
         toast.error("Session expired. Please log in again.");
       }, SESSION_TIMEOUT_MS);
 

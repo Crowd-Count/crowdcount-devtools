@@ -4,6 +4,7 @@
 
 [build.environment]
   NEXT_PUBLIC_API_URL = "https://api.crowdcount.tech"
+  NEXT_PUBLIC_MAPKIT_TOKEN = "eyJraWQiOiJYUjhSOUZIOTdEIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI0NVQ1NlFCMlBZIiwiaWF0IjoxNzcwMjUxNzU5LCJvcmlnaW4iOiJkZXZ0b29scy5jcm93ZGNvdW50LnRlY2gifQ.3qTEbivmWlag3oqu0dT_RefnNiPLA3aca3b18Gp12XxHtpotTCkoNJ8koWFEBjFuG7ZIwCsr8mF7UsdsLg6PcA"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

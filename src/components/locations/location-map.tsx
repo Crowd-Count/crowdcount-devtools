@@ -1,32 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useEffect, useRef, useState } from "react";
 import type { Location } from "@/lib/types";
 
-// Fix for default marker icons in Leaflet with Next.js
-const defaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const MAPKIT_TOKEN = process.env.NEXT_PUBLIC_MAPKIT_TOKEN!;
 
-L.Marker.prototype.options.icon = defaultIcon;
+const colorMap: Record<string, string> = {
+  red: "#FF3B30",
+  orange: "#FF9500",
+  yellow: "#FFCC00",
+  green: "#34C759",
+  mint: "#00C7BE",
+  teal: "#30B0C7",
+  cyan: "#32ADE6",
+  blue: "#007AFF",
+  indigo: "#5856D6",
+  purple: "#AF52DE",
+  pink: "#FF2D55",
+  brown: "#A2845E",
+};
 
-function createColoredIcon(color: string) {
-  return L.divIcon({
-    className: "custom-marker",
-    html: `<div style="background-color: ${color}; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
+function getMarkerColor(colorName: string): string {
+  return colorMap[colorName?.toLowerCase()] || "#007AFF";
+}
+
+// Load and initialize MapKit JS once
+let mapkitLoadPromise: Promise<void> | null = null;
+let mapkitInitialized = false;
+
+function loadAndInitMapKit(): Promise<void> {
+  if (mapkitLoadPromise) return mapkitLoadPromise;
+
+  mapkitLoadPromise = new Promise<void>((resolve, reject) => {
+    if (typeof window !== "undefined" && typeof mapkit !== "undefined") {
+      if (!mapkitInitialized) {
+        mapkit.init({
+          authorizationCallback: (done) => done(MAPKIT_TOKEN),
+        });
+        mapkitInitialized = true;
+      }
+      resolve();
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js";
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      mapkit.init({
+        authorizationCallback: (done) => done(MAPKIT_TOKEN),
+      });
+      mapkitInitialized = true;
+      resolve();
+    };
+    script.onerror = () => reject(new Error("Failed to load MapKit JS"));
+    document.head.appendChild(script);
   });
+
+  return mapkitLoadPromise;
 }
 
 interface LocationMapProps {
@@ -35,78 +66,153 @@ interface LocationMapProps {
   selectedPosition?: { lat: number; lng: number } | null;
 }
 
-function MapClickHandler({ onClick }: { onClick: (lat: number, lng: number) => void }) {
-  useMapEvents({
-    click: (e) => {
-      onClick(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
+export function LocationMap({
+  locations,
+  onLocationClick,
+  selectedPosition,
+}: LocationMapProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapkit.Map | null>(null);
+  const annotationsRef = useRef<mapkit.MarkerAnnotation[]>([]);
+  const selectedMarkerRef = useRef<mapkit.MarkerAnnotation | null>(null);
+  const [ready, setReady] = useState(false);
 
-export function LocationMap({ locations, onLocationClick, selectedPosition }: LocationMapProps) {
-  const [isMounted, setIsMounted] = useState(false);
-
+  // Load MapKit JS and create the map
   useEffect(() => {
-    setIsMounted(true);
+    let destroyed = false;
+
+    loadAndInitMapKit().then(() => {
+      if (destroyed || !containerRef.current) return;
+
+      const defaultCenter = new mapkit.Coordinate(40.015, -105.2705);
+
+      const map = new mapkit.Map(containerRef.current, {
+        center: defaultCenter,
+        region: new mapkit.CoordinateRegion(
+          defaultCenter,
+          new mapkit.CoordinateSpan(0.05, 0.05)
+        ),
+        colorScheme: mapkit.Map.ColorSchemes.Dark,
+      });
+
+      mapRef.current = map;
+      setReady(true);
+    });
+
+    return () => {
+      destroyed = true;
+      if (mapRef.current) {
+        mapRef.current.destroy();
+        mapRef.current = null;
+      }
+    };
   }, []);
 
-  if (!isMounted) {
-    return (
-      <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-lg">
-        Loading map...
-      </div>
-    );
-  }
+  // Click-to-place handler
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !onLocationClick) return;
 
-  const center = locations.length > 0
-    ? [locations[0].location_latitude, locations[0].location_longitude] as [number, number]
-    : [40.0150, -105.2705] as [number, number]; // Default to Boulder, CO
+    const handler = (event: mapkit.MapEvent) => {
+      // Ignore taps on annotations
+      if (event.annotation) return;
+      if (!event.pointOnPage) return;
+
+      const point = new DOMPoint(event.pointOnPage.x, event.pointOnPage.y);
+      const coord = map.convertPointOnPageToCoordinate(point);
+      onLocationClick(coord.latitude, coord.longitude);
+    };
+
+    map.addEventListener("single-tap", handler);
+    return () => map.removeEventListener("single-tap", handler);
+  }, [ready, onLocationClick]);
+
+  // Update location markers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+
+    // Remove previous location annotations
+    if (annotationsRef.current.length > 0) {
+      map.removeAnnotations(annotationsRef.current);
+    }
+
+    // Build new annotations
+    const annotations = locations.map((loc) => {
+      const coord = new mapkit.Coordinate(
+        loc.location_latitude,
+        loc.location_longitude
+      );
+
+      let subtitle = loc.location_address;
+      if (loc.location_current_count !== undefined) {
+        subtitle += ` · Count: ${loc.location_current_count}`;
+        if (
+          loc.location_overcrowding_count &&
+          loc.location_overcrowding_count !== "N/A"
+        ) {
+          subtitle += ` / ${loc.location_overcrowding_count}`;
+        }
+      }
+
+      return new mapkit.MarkerAnnotation(coord, {
+        color: getMarkerColor(loc.location_color),
+        title: loc.location_name,
+        subtitle,
+        calloutEnabled: true,
+      });
+    });
+
+    map.addAnnotations(annotations);
+    annotationsRef.current = annotations;
+
+    // Center on first location if available
+    if (locations.length > 0) {
+      const first = locations[0];
+      const center = new mapkit.Coordinate(
+        first.location_latitude,
+        first.location_longitude
+      );
+      map.setRegionAnimated(
+        new mapkit.CoordinateRegion(
+          center,
+          new mapkit.CoordinateSpan(0.05, 0.05)
+        )
+      );
+    }
+  }, [ready, locations]);
+
+  // Update selected-position marker
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+
+    // Remove old selected marker
+    if (selectedMarkerRef.current) {
+      map.removeAnnotation(selectedMarkerRef.current);
+      selectedMarkerRef.current = null;
+    }
+
+    // Add new one
+    if (selectedPosition) {
+      const coord = new mapkit.Coordinate(
+        selectedPosition.lat,
+        selectedPosition.lng
+      );
+      const marker = new mapkit.MarkerAnnotation(coord, {
+        color: "#FF3B30",
+        title: "New location",
+        calloutEnabled: true,
+      });
+      map.addAnnotation(marker);
+      selectedMarkerRef.current = marker;
+    }
+  }, [ready, selectedPosition]);
 
   return (
-    <MapContainer
-      center={center}
-      zoom={12}
+    <div
+      ref={containerRef}
       className="h-[400px] w-full rounded-lg z-0"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {onLocationClick && <MapClickHandler onClick={onLocationClick} />}
-      {locations.map((location) => (
-        <Marker
-          key={location.location_device}
-          position={[location.location_latitude, location.location_longitude]}
-          icon={createColoredIcon(location.location_color || "#3b82f6")}
-        >
-          <Popup>
-            <div className="space-y-1">
-              <p className="font-semibold">{location.location_name}</p>
-              <p className="text-sm text-gray-600">{location.location_address}</p>
-              <p className="text-sm">
-                Device: <code>{location.location_device}</code>
-              </p>
-              {location.location_current_count !== undefined && (
-                <p className="text-sm font-medium">
-                  Count: {location.location_current_count}
-                  {location.location_overcrowding_count &&
-                    location.location_overcrowding_count !== "N/A" && (
-                      <span className="text-gray-500">
-                        {" "}/ {location.location_overcrowding_count}
-                      </span>
-                    )}
-                </p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-      {selectedPosition && (
-        <Marker position={[selectedPosition.lat, selectedPosition.lng]}>
-          <Popup>New location</Popup>
-        </Marker>
-      )}
-    </MapContainer>
+    />
   );
 }

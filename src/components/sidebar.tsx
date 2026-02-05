@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getSessionExpiry } from "@/lib/session";
 import {
   LayoutDashboard,
   Bell,
@@ -15,6 +16,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 
 const navigation = [
@@ -28,9 +30,35 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+function useSessionTimer() {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const expiry = getSessionExpiry();
+      if (expiry) {
+        setTimeLeft(Math.max(0, expiry - Date.now()));
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (timeLeft === null) return null;
+
+  const totalSeconds = Math.floor(timeLeft / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return {
+    formatted: `${minutes}:${seconds.toString().padStart(2, "0")}`,
+    isLow: minutes < 5,
+  };
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const timer = useSessionTimer();
 
   return (
     <div
@@ -83,13 +111,25 @@ export function Sidebar() {
           );
         })}
       </nav>
-      {!collapsed && (
-        <div className="border-t p-4">
+      <div className="border-t p-4">
+        {timer && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 text-xs mb-2",
+              timer.isLow ? "text-red-400" : "text-muted-foreground"
+            )}
+            title="Time until auto logout"
+          >
+            <Clock className="h-3 w-3 flex-shrink-0" />
+            {!collapsed && <span>{timer.formatted}</span>}
+          </div>
+        )}
+        {!collapsed && (
           <p className="text-xs text-muted-foreground">
             API: {process.env.NEXT_PUBLIC_API_URL || "localhost:8080"}
           </p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
