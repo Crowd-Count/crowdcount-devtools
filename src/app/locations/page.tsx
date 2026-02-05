@@ -34,7 +34,7 @@ const LocationMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-lg">
+      <div className="h-full w-full bg-muted flex items-center justify-center rounded-lg">
         Loading map...
       </div>
     ),
@@ -414,7 +414,9 @@ export default function LocationsPage() {
           <CardTitle>Map View</CardTitle>
         </CardHeader>
         <CardContent>
-          <LocationMap locations={locations || []} />
+          <div className="h-[400px]">
+            <LocationMap locations={locations || []} />
+          </div>
         </CardContent>
       </Card>
 

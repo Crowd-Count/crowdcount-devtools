@@ -237,7 +237,7 @@ export function LocationMap({
 
   if (error) {
     return (
-      <div className="h-[400px] w-full bg-muted flex items-center justify-center rounded-lg">
+      <div className="h-full w-full bg-muted flex items-center justify-center rounded-lg">
         <p className="text-sm text-muted-foreground px-4 text-center">{error}</p>
       </div>
     );
@@ -246,8 +246,8 @@ export function LocationMap({
   return (
     <div
       ref={containerRef}
-      style={{ height: 400, width: "100%" }}
-      className="rounded-lg z-0"
+      style={{ height: "100%", width: "100%", borderRadius: "0.5rem", overflow: "hidden" }}
+      className="z-0"
     />
   );
 }
