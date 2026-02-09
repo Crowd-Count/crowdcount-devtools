@@ -1,6 +1,13 @@
 import type { Alert, Location, LocationDevice, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
+import { signRequest, generateIdempotencyKey } from "./crypto";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.crowdcount.tech";
+
+interface SignedRequestOptions extends Omit<RequestInit, "headers"> {
+  headers?: Record<string, string>;
+  sign?: boolean;
+  idempotent?: boolean;
+}
 
 class CrowdCountAPI {
   private adminPassword: string = "";
@@ -13,14 +20,38 @@ class CrowdCountAPI {
     return this.adminPassword;
   }
 
-  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async fetch<T>(endpoint: string, options?: SignedRequestOptions): Promise<T> {
+    const { sign, idempotent, headers: extraHeaders, ...fetchOptions } = options || {};
+    const method = (fetchOptions.method as string) || "GET";
+    const bodyStr = (fetchOptions.body as string) || "";
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...extraHeaders,
+    };
+
+    // Sign request with Admin device ID
+    if (sign && this.adminPassword) {
+      const sigHeaders = await signRequest(
+        "Admin",
+        this.adminPassword,
+        method,
+        endpoint,
+        bodyStr
+      );
+      Object.assign(headers, sigHeaders);
+    }
+
+    // Add idempotency key for mutating requests
+    if (idempotent) {
+      headers["Idempotency-Key"] = generateIdempotencyKey();
+    }
+
     const url = `${API_BASE}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
+    const response = await globalThis.fetch(url, {
+      method,
+      body: fetchOptions.body,
+      headers,
     });
 
     if (!response.ok) {
@@ -32,24 +63,27 @@ class CrowdCountAPI {
   }
 
   // Authenticated POST request with password in body (not URL)
-  private async authFetch<T>(endpoint: string, body: Record<string, unknown> = {}): Promise<T> {
+  private async authFetch<T>(endpoint: string, body: Record<string, unknown> = {}, idempotent: boolean = false): Promise<T> {
+    const bodyStr = JSON.stringify({
+      ...body,
+      password: this.adminPassword,
+    });
     return this.fetch(endpoint, {
       method: "POST",
-      body: JSON.stringify({
-        ...body,
-        password: this.adminPassword,
-      }),
+      body: bodyStr,
+      sign: true,
+      idempotent,
     });
   }
 
   // Health & Status
   async ping(): Promise<{ status: string }> {
-    return this.fetch("/ping");
+    return this.fetch("/ping", { sign: true });
   }
 
   async pingWithLatency(): Promise<{ status: string; latencyMs: number }> {
     const start = performance.now();
-    const result = await this.fetch<{ status: string }>("/ping");
+    const result = await this.fetch<{ status: string }>("/ping", { sign: true });
     const latencyMs = Math.round(performance.now() - start);
     return { ...result, latencyMs };
   }
@@ -61,6 +95,7 @@ class CrowdCountAPI {
         {
           method: "POST",
           body: JSON.stringify({ password }),
+          sign: true,
         }
       );
       return result.is_password_correct;
@@ -100,7 +135,7 @@ class CrowdCountAPI {
   }
 
   async createUsers(count: number = 1): Promise<CreateUserResponse> {
-    return this.authFetch("/create_user", { count });
+    return this.authFetch("/create_user", { count }, true);
   }
 
   async createDeviceWithCredentials(deviceId: string, devicePassword: string): Promise<{
@@ -112,18 +147,18 @@ class CrowdCountAPI {
     return this.authFetch("/admin/create_device", {
       device_id: deviceId,
       device_password: devicePassword,
-    });
+    }, true);
   }
 
   async deleteUser(deviceId: string): Promise<{ status: string }> {
-    return this.authFetch(`/delete_user`, { device_id: deviceId });
+    return this.authFetch("/delete_user", { device_id: deviceId }, true);
   }
 
   async setDeviceStatus(deviceId: string, status: "online" | "offline"): Promise<{ success: boolean }> {
     return this.authFetch("/admin/set_device_status", {
       device_id: deviceId,
       status,
-    });
+    }, true);
   }
 
   // Locations
@@ -161,11 +196,13 @@ class CrowdCountAPI {
     return this.fetch("/add_location", {
       method: "POST",
       body: JSON.stringify(body),
+      sign: true,
+      idempotent: true,
     });
   }
 
   async removeLocation(deviceId: string): Promise<{ status: string }> {
-    return this.authFetch("/remove_location", { location_device: deviceId });
+    return this.authFetch("/remove_location", { location_device: deviceId }, true);
   }
 
   // Alerts
@@ -185,10 +222,23 @@ class CrowdCountAPI {
     }
   }
 
+  async getActiveAlerts(): Promise<Alert[]> {
+    try {
+      const result = await this.fetch<{ alert_info: Alert[] }>(
+        "/get_active_alert"
+      );
+      return result.alert_info || [];
+    } catch {
+      return [];
+    }
+  }
+
   async sendAlert(alert: Omit<Alert, "alert_id">): Promise<{ status: string; alert_id: string }> {
     return this.fetch("/send_alert", {
       method: "POST",
       body: JSON.stringify({ ...alert, password: this.adminPassword }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -196,6 +246,8 @@ class CrowdCountAPI {
     return this.fetch("/expire_alert", {
       method: "POST",
       body: JSON.stringify({ alert_id: alertId, password: this.adminPassword }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -214,6 +266,8 @@ class CrowdCountAPI {
     return this.fetch("/resolve_report", {
       method: "POST",
       body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -221,6 +275,8 @@ class CrowdCountAPI {
     return this.fetch("/delete_report", {
       method: "POST",
       body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -245,6 +301,8 @@ class CrowdCountAPI {
         overcrowding_value: value,
         password,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -285,6 +343,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         ad_id: adId,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -296,6 +356,8 @@ class CrowdCountAPI {
         ad_id: adId,
         reason,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -306,6 +368,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         ad_id: adId,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -320,6 +384,8 @@ class CrowdCountAPI {
       body: JSON.stringify({
         password: this.adminPassword,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -330,6 +396,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         days_old: daysOld,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -356,6 +424,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         ...data,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -372,6 +442,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         text,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -382,11 +454,13 @@ class CrowdCountAPI {
         password: this.adminPassword,
         text,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
   async deleteLoginText(textId: string): Promise<{ success: boolean }> {
-    return this.authFetch("/login-texts/pool/delete", { text_id: textId });
+    return this.authFetch("/login-texts/pool/delete", { text_id: textId }, true);
   }
 
   async toggleLoginTextActive(textId: string, active: boolean): Promise<{ success: boolean; active: boolean }> {
@@ -396,6 +470,8 @@ class CrowdCountAPI {
         password: this.adminPassword,
         active,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
@@ -412,11 +488,13 @@ class CrowdCountAPI {
         date,
         text,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 
   async clearLoginTextOverride(date: string): Promise<{ success: boolean }> {
-    return this.authFetch("/login-texts/override/clear", { date });
+    return this.authFetch("/login-texts/override/clear", { date }, true);
   }
 
   async getUpcomingLoginTexts(days: number = 7): Promise<DailyLoginText[]> {
@@ -437,6 +515,8 @@ class CrowdCountAPI {
         price_per_hour: pricePerHour,
         currency,
       }),
+      sign: true,
+      idempotent: true,
     });
   }
 }
