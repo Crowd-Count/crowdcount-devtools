@@ -134,10 +134,9 @@ export default function DevicesPage() {
   const devicesWithVersions: Device[] | undefined = devices?.map((d) => {
     const ver = versions[d.device_id];
     const commitHash = ver?.commit_hash ?? null;
-    let isUpdated: boolean | null = null;
-    if (commitHash && targetHash) {
-      isUpdated = commitHash === targetHash;
-    }
+    // If target is set: updated only if hash matches; otherwise not updated
+    // If no target set: all show as not updated
+    const isUpdated = commitHash && targetHash ? commitHash === targetHash : false;
     return { ...d, commit_hash: commitHash, is_updated: isUpdated };
   });
 
@@ -152,7 +151,6 @@ export default function DevicesPage() {
   // Version stats
   const updatedCount = devicesWithVersions?.filter((d) => d.is_updated === true).length || 0;
   const outdatedCount = devicesWithVersions?.filter((d) => d.is_updated === false).length || 0;
-  const unknownCount = devicesWithVersions?.filter((d) => d.is_updated === null).length || 0;
 
   // Initialize target hash input from server data
   const displayTargetHash = targetHashDirty ? targetHashInput : (targetHash || "");
@@ -371,11 +369,11 @@ export default function DevicesPage() {
             <div className="text-2xl font-bold text-green-600">
               {updatedCount}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                / {(devices?.length || 0) - unknownCount}
+                / {devices?.length || 0}
               </span>
             </div>
             {outdatedCount > 0 && (
-              <p className="text-xs text-orange-500">{outdatedCount} outdated</p>
+              <p className="text-xs text-orange-500">{outdatedCount} not updated</p>
             )}
           </CardContent>
         </Card>
@@ -451,14 +449,12 @@ export default function DevicesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {device.is_updated === true ? (
+                      {device.is_updated ? (
                         <Badge className="bg-green-500 hover:bg-green-600">Updated</Badge>
-                      ) : device.is_updated === false ? (
-                        <Badge variant="outline" className="border-orange-400 text-orange-500" title={device.commit_hash || ""}>
-                          Outdated
-                        </Badge>
                       ) : (
-                        <Badge variant="secondary">Unknown</Badge>
+                        <Badge variant="outline" className="border-orange-400 text-orange-500" title={device.commit_hash || "No version reported"}>
+                          Not Updated
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>
