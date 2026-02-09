@@ -502,6 +502,18 @@ class CrowdCountAPI {
     return result.texts || [];
   }
 
+  // Device Versions
+  async getDeviceVersions(): Promise<{
+    versions: Record<string, { commit_hash: string; updated_at: number }>;
+    target_commit_hash: string | null;
+  }> {
+    return this.authFetch("/get_all_device_versions");
+  }
+
+  async setTargetVersion(hash: string): Promise<{ status: string }> {
+    return this.authFetch("/set_target_version", { target_commit_hash: hash });
+  }
+
   // Promotion Pricing
   async getPromotionPricing(): Promise<{ price_per_hour: number; currency: string }> {
     return this.fetch("/get-promotion-pricing");

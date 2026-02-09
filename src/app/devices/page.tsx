@@ -37,7 +37,8 @@ import {
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu, UserPlus } from "lucide-react";
+import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu, UserPlus, CheckCircle2, Save } from "lucide-react";
+import type { Device } from "@/lib/types";
 
 export default function DevicesPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -47,12 +48,31 @@ export default function DevicesPage() {
   const [customDeviceId, setCustomDeviceId] = useState("");
   const [customPassword, setCustomPassword] = useState("");
   const [createMode, setCreateMode] = useState<"auto" | "custom">("auto");
+  const [targetHashInput, setTargetHashInput] = useState("");
+  const [targetHashDirty, setTargetHashDirty] = useState(false);
 
   const queryClient = useQueryClient();
 
   const { data: devices, isLoading } = useQuery({
     queryKey: ["allDevices"],
     queryFn: () => api.getAllDevices(),
+  });
+
+  const { data: versionData } = useQuery({
+    queryKey: ["deviceVersions"],
+    queryFn: () => api.getDeviceVersions(),
+  });
+
+  const setTargetMutation = useMutation({
+    mutationFn: (hash: string) => api.setTargetVersion(hash),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deviceVersions"] });
+      setTargetHashDirty(false);
+      toast.success("Target version updated");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
   });
 
   const createMutation = useMutation({
@@ -107,13 +127,35 @@ export default function DevicesPage() {
     },
   });
 
-  const filteredDevices = devices?.filter((device) => {
+  // Merge version data into devices
+  const targetHash = versionData?.target_commit_hash ?? null;
+  const versions = versionData?.versions ?? {};
+
+  const devicesWithVersions: Device[] | undefined = devices?.map((d) => {
+    const ver = versions[d.device_id];
+    const commitHash = ver?.commit_hash ?? null;
+    let isUpdated: boolean | null = null;
+    if (commitHash && targetHash) {
+      isUpdated = commitHash === targetHash;
+    }
+    return { ...d, commit_hash: commitHash, is_updated: isUpdated };
+  });
+
+  const filteredDevices = devicesWithVersions?.filter((device) => {
     if (filter === "all") return true;
     return device.status === filter;
   });
 
   const onlineCount = devices?.filter((d) => d.status === "online").length || 0;
   const offlineCount = devices?.filter((d) => d.status === "offline").length || 0;
+
+  // Version stats
+  const updatedCount = devicesWithVersions?.filter((d) => d.is_updated === true).length || 0;
+  const outdatedCount = devicesWithVersions?.filter((d) => d.is_updated === false).length || 0;
+  const unknownCount = devicesWithVersions?.filter((d) => d.is_updated === null).length || 0;
+
+  // Initialize target hash input from server data
+  const displayTargetHash = targetHashDirty ? targetHashInput : (targetHash || "");
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
@@ -259,7 +301,40 @@ export default function DevicesPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Target Version */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Target Version</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <Input
+              className="font-mono text-sm"
+              placeholder="Enter target commit hash..."
+              value={displayTargetHash}
+              onChange={(e) => {
+                setTargetHashInput(e.target.value);
+                setTargetHashDirty(true);
+              }}
+            />
+            <Button
+              size="sm"
+              disabled={!targetHashDirty || setTargetMutation.isPending}
+              onClick={() => setTargetMutation.mutate(targetHashInput)}
+            >
+              <Save className="mr-1 h-3 w-3" />
+              {setTargetMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+          {targetHash && !targetHashDirty && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Current target: <code>{targetHash}</code>
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
@@ -285,6 +360,23 @@ export default function DevicesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{offlineCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Updated</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {updatedCount}
+              <span className="text-sm font-normal text-muted-foreground ml-1">
+                / {(devices?.length || 0) - unknownCount}
+              </span>
+            </div>
+            {outdatedCount > 0 && (
+              <p className="text-xs text-orange-500">{outdatedCount} outdated</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -314,6 +406,7 @@ export default function DevicesPage() {
                 <TableRow>
                   <TableHead>Device ID</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Version</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -356,6 +449,17 @@ export default function DevicesPage() {
                         )}
                         {device.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {device.is_updated === true ? (
+                        <Badge className="bg-green-500 hover:bg-green-600">Updated</Badge>
+                      ) : device.is_updated === false ? (
+                        <Badge variant="outline" className="border-orange-400 text-orange-500" title={device.commit_hash || ""}>
+                          Outdated
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Unknown</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button

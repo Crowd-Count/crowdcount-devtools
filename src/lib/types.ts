@@ -4,6 +4,8 @@ export interface Device {
   device_id: string;
   user_id?: string;  // Deprecated: use device_id
   status: "online" | "offline";
+  commit_hash?: string | null;
+  is_updated?: boolean | null; // true = matches target, false = outdated, null = no version reported
 }
 
 export interface LocationDevice {
