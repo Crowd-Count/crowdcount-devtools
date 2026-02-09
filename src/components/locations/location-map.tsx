@@ -246,7 +246,7 @@ export function LocationMap({
   return (
     <div
       ref={containerRef}
-      style={{ height: "100%", width: "100%", borderRadius: "0.5rem", overflow: "hidden" }}
+      style={{ height: "100%", width: "100%", borderRadius: "0.5rem", overflow: "hidden", fontVariationSettings: '"wght" 600' }}
       className="z-0"
     />
   );
