@@ -13,6 +13,7 @@ import {
   MapPin,
   MessageSquare,
   Activity,
+  CheckCircle2,
 } from "lucide-react";
 
 export function StatsCards() {
@@ -61,6 +62,19 @@ export function StatsCards() {
     queryFn: () => api.pingWithLatency(),
   });
 
+  const { data: versionData } = useQuery({
+    queryKey: ["deviceVersions"],
+    queryFn: () => api.getDeviceVersions(),
+  });
+
+  const updatedCount = (() => {
+    if (!versionData?.target_commit_hash || !totalDevices) return undefined;
+    const target = versionData.target_commit_hash.trim().toLowerCase();
+    return Object.values(versionData.versions).filter(
+      (v) => v.commit_hash?.toLowerCase().startsWith(target) || target.startsWith(v.commit_hash?.toLowerCase())
+    ).length;
+  })();
+
   const stats = [
     {
       title: "Active App Users",
@@ -91,6 +105,17 @@ export function StatsCards() {
       description: "Devices not reporting",
       badge: offlineDevices && offlineDevices > 0 ? "Attention" : undefined,
       badgeVariant: "destructive" as const,
+    },
+    {
+      title: "Counters Updated",
+      value: updatedCount !== undefined ? `${updatedCount}/${totalDevices}` : "-",
+      icon: CheckCircle2,
+      description: "Running target version",
+      badge: updatedCount !== undefined && totalDevices !== undefined && updatedCount < totalDevices
+        ? `${totalDevices - updatedCount} outdated`
+        : updatedCount === totalDevices ? "All updated" : undefined,
+      badgeVariant: (updatedCount !== undefined && totalDevices !== undefined && updatedCount < totalDevices
+        ? "destructive" : "default") as "default" | "destructive" | "secondary",
     },
     {
       title: "Active Alert",

@@ -131,12 +131,16 @@ export default function DevicesPage() {
   const targetHash = versionData?.target_commit_hash ?? null;
   const versions = versionData?.versions ?? {};
 
+  const trimmedTarget = targetHash?.trim().toLowerCase() || null;
   const devicesWithVersions: Device[] | undefined = devices?.map((d) => {
     const ver = versions[d.device_id];
     const commitHash = ver?.commit_hash ?? null;
-    // If target is set: updated only if hash matches; otherwise not updated
-    // If no target set: all show as not updated
-    const isUpdated = commitHash && targetHash ? commitHash === targetHash : false;
+    // Compare with prefix matching: allow short hashes (e.g. 7-char from git log)
+    const isUpdated =
+      commitHash && trimmedTarget
+        ? commitHash.toLowerCase().startsWith(trimmedTarget) ||
+          trimmedTarget.startsWith(commitHash.toLowerCase())
+        : false;
     return { ...d, commit_hash: commitHash, is_updated: isUpdated };
   });
 
@@ -318,7 +322,7 @@ export default function DevicesPage() {
             <Button
               size="sm"
               disabled={!targetHashDirty || setTargetMutation.isPending}
-              onClick={() => setTargetMutation.mutate(targetHashInput)}
+              onClick={() => setTargetMutation.mutate(targetHashInput.trim())}
             >
               <Save className="mr-1 h-3 w-3" />
               {setTargetMutation.isPending ? "Saving..." : "Save"}
