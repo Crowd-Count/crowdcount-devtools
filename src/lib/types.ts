@@ -11,6 +11,9 @@ export interface Device {
 // Server returns devices as [device_id, label] tuples
 export type LocationDevice = [string, string];
 
+// Enriched endpoint returns [device_id, label, current_count]
+export type EnrichedLocationDevice = [string, string, number];
+
 export interface Location {
   location_id: string;
   location_name: string;
@@ -26,6 +29,10 @@ export interface Location {
   devices: LocationDevice[];  // [[device_id, label], ...]
   created_at: string;
   updated_at: string;
+}
+
+export interface EnrichedLocation extends Omit<Location, "devices"> {
+  devices: EnrichedLocationDevice[];  // [[device_id, label, count], ...]
 }
 
 export interface Alert {

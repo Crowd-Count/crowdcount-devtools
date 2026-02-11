@@ -1,4 +1,4 @@
-import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
+import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
 export const API_ENVIRONMENTS = {
@@ -195,8 +195,8 @@ class CrowdCountAPI {
     return result.locations || [];
   }
 
-  async getAllLocationsEnriched(): Promise<Location[]> {
-    const result = await this.authFetch<{ locations: Location[] }>("/get_all_locations_enriched");
+  async getAllLocationsEnriched(): Promise<EnrichedLocation[]> {
+    const result = await this.authFetch<{ locations: EnrichedLocation[] }>("/get_all_locations_enriched");
     return result.locations || [];
   }
 

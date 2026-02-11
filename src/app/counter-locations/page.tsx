@@ -16,16 +16,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
-import type { Location } from "@/lib/types";
+import type { EnrichedLocation } from "@/lib/types";
 
-function DeviceRow({ deviceId, label }: { deviceId: string; label: string }) {
+function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string; count: number }) {
   const queryClient = useQueryClient();
-  const [knownCount, setKnownCount] = useState<number | null>(null);
 
   const addMutation = useMutation({
     mutationFn: (delta: number) => api.addToDeviceCount(deviceId, delta),
     onSuccess: (data) => {
-      setKnownCount(data.new_count);
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
       toast.success(`${deviceId}: count → ${data.new_count}`);
     },
@@ -44,11 +42,7 @@ function DeviceRow({ deviceId, label }: { deviceId: string; label: string }) {
       {label && label !== "Counter" && (
         <span className="text-xs text-muted-foreground">{label}</span>
       )}
-      <span className="text-xs font-mono tabular-nums ml-2">
-        {knownCount !== null ? knownCount : (
-          <span className="text-muted-foreground italic">unknown</span>
-        )}
-      </span>
+      <span className="text-xs font-mono tabular-nums ml-2">{count}</span>
       <div className="ml-auto flex items-center gap-1">
         <Button
           variant="outline"
@@ -73,7 +67,7 @@ function DeviceRow({ deviceId, label }: { deviceId: string; label: string }) {
   );
 }
 
-function LocationRow({ location }: { location: Location }) {
+function LocationRow({ location }: { location: EnrichedLocation }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -134,8 +128,8 @@ function LocationRow({ location }: { location: Location }) {
         <TableRow>
           <TableCell colSpan={5} className="bg-muted/30 py-2 px-8">
             <div className="space-y-1">
-              {location.devices.map(([deviceId, label]) => (
-                <DeviceRow key={deviceId} deviceId={deviceId} label={label} />
+              {location.devices.map(([deviceId, label, count]) => (
+                <DeviceRow key={deviceId} deviceId={deviceId} label={label} count={count} />
               ))}
             </div>
           </TableCell>
