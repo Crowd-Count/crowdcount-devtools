@@ -523,7 +523,7 @@ class CrowdCountAPI {
   async createAdminAd(data: {
     title: string;
     description: string;
-    device_id: string;
+    location_id: string;
     duration_hours: number;
     cta_text?: string;
     cta_link_type?: "default" | "custom";

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid } from "lucide-react";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
 
 function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string; count: number }) {
@@ -93,6 +93,20 @@ function LocationRow({ location }: { location: EnrichedLocation }) {
           </div>
         </TableCell>
         <TableCell>
+          <button
+            className="flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(location.location_id);
+              toast.success("Location ID copied");
+            }}
+            title={location.location_id}
+          >
+            {location.location_id.slice(0, 8)}...
+            <Copy className="h-3 w-3" />
+          </button>
+        </TableCell>
+        <TableCell>
           <div className="flex gap-1">
             {location.is_auto ? (
               <Badge variant="outline" className="text-xs">auto</Badge>
@@ -126,7 +140,7 @@ function LocationRow({ location }: { location: EnrichedLocation }) {
       </TableRow>
       {expanded && location.devices.length > 0 && (
         <TableRow>
-          <TableCell colSpan={5} className="bg-muted/30 py-2 px-8">
+          <TableCell colSpan={6} className="bg-muted/30 py-2 px-8">
             <div className="space-y-1">
               {location.devices.map(([deviceId, label, count]) => (
                 <DeviceRow key={deviceId} deviceId={deviceId} label={label} count={count} />
@@ -169,6 +183,7 @@ export default function CounterLocationsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Location ID</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>On Map</TableHead>
                   <TableHead>Devices</TableHead>

@@ -61,7 +61,7 @@ export default function AdsPage() {
   const [newAd, setNewAd] = useState({
     title: "",
     description: "",
-    device_id: "",
+    location_id: "",
     duration_hours: 24,
     cta_text: "View Details",
     cta_link_type: "default" as "default" | "custom",
@@ -201,16 +201,16 @@ export default function AdsPage() {
     },
   });
 
-  const { data: devices } = useQuery({
-    queryKey: ["devices"],
-    queryFn: () => api.getAllDevices(),
+  const { data: locations } = useQuery({
+    queryKey: ["allLocationsEnriched"],
+    queryFn: () => api.getAllLocationsEnriched(),
   });
 
   const createAdminAdMutation = useMutation({
     mutationFn: () => api.createAdminAd({
       title: newAd.title,
       description: newAd.description,
-      device_id: newAd.device_id,
+      location_id: newAd.location_id,
       duration_hours: newAd.duration_hours,
       cta_text: newAd.cta_text,
       cta_link_type: newAd.cta_link_type,
@@ -225,7 +225,7 @@ export default function AdsPage() {
       setNewAd({
         title: "",
         description: "",
-        device_id: "",
+        location_id: "",
         duration_hours: 24,
         cta_text: "View Details",
         cta_link_type: "default",
@@ -750,18 +750,18 @@ export default function AdsPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="device">Device</Label>
+              <Label htmlFor="location">Location</Label>
               <Select
-                value={newAd.device_id}
-                onValueChange={(v) => setNewAd({ ...newAd, device_id: v })}
+                value={newAd.location_id}
+                onValueChange={(v) => setNewAd({ ...newAd, location_id: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a device" />
+                  <SelectValue placeholder="Select a location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {devices?.filter(d => d.user_id && d.user_id !== "Demo").map((device) => (
-                    <SelectItem key={device.user_id} value={device.user_id!}>
-                      {device.user_id} ({device.status})
+                  {locations?.map((loc) => (
+                    <SelectItem key={loc.location_id} value={loc.location_id}>
+                      {loc.location_name || loc.location_id.slice(0, 8)} — {loc.devices.map(d => d[0]).join(", ")}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -822,7 +822,7 @@ export default function AdsPage() {
             </Button>
             <Button
               onClick={() => createAdminAdMutation.mutate()}
-              disabled={createAdminAdMutation.isPending || !newAd.title || !newAd.description || !newAd.device_id}
+              disabled={createAdminAdMutation.isPending || !newAd.title || !newAd.description || !newAd.location_id}
             >
               Create Ad
             </Button>
