@@ -195,6 +195,18 @@ class CrowdCountAPI {
     return result.locations || [];
   }
 
+  async getAllLocationsEnriched(): Promise<Location[]> {
+    const result = await this.authFetch<{ locations: Location[] }>("/get_all_locations_enriched");
+    return result.locations || [];
+  }
+
+  async addToDeviceCount(deviceId: string, delta: number): Promise<{ message: string; new_count: number }> {
+    return this.authFetch("/admin/add_to_count", {
+      device_id: deviceId,
+      count_to_add: delta,
+    }, true);
+  }
+
   async createLocation(
     deviceIds: string[],
     name: string,

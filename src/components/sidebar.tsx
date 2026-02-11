@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Bell,
   MapPin,
+  LayoutGrid,
   Cpu,
   MessageSquare,
   Megaphone,
@@ -18,11 +19,13 @@ import {
   ChevronRight,
   Clock,
 } from "lucide-react";
+import { getApiEnv, API_ENVIRONMENTS } from "@/lib/api";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Alerts", href: "/alerts", icon: Bell },
-  { name: "Locations", href: "/locations", icon: MapPin },
+  { name: "Map Locations", href: "/locations", icon: MapPin },
+  { name: "Counter Locations", href: "/counter-locations", icon: LayoutGrid },
   { name: "Devices", href: "/devices", icon: Cpu },
   { name: "Reports", href: "/reports", icon: MessageSquare },
   { name: "Ads", href: "/ads", icon: Megaphone },
@@ -126,7 +129,7 @@ export function Sidebar() {
         )}
         {!collapsed && (
           <p className="text-xs text-muted-foreground">
-            API: {process.env.NEXT_PUBLIC_API_URL || "localhost:8080"}
+            API: {API_ENVIRONMENTS[getApiEnv()]}
           </p>
         )}
       </div>
