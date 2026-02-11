@@ -163,26 +163,24 @@ export function LocationMap({
       map.removeAnnotations(annotationsRef.current);
     }
 
-    // Build new annotations
-    const annotations = locations.map((loc) => {
+    // Build new annotations (skip locations without coordinates)
+    const mappable = locations.filter(
+      (loc) => loc.location_latitude != null && loc.location_longitude != null
+    );
+    const annotations = mappable.map((loc) => {
       const coord = new mapkit.Coordinate(
-        loc.location_latitude,
-        loc.location_longitude
+        loc.location_latitude!,
+        loc.location_longitude!
       );
 
-      let subtitle = loc.location_address;
-      if (loc.location_current_count !== undefined) {
-        subtitle += ` · Count: ${loc.location_current_count}`;
-        if (
-          loc.location_overcrowding_count &&
-          loc.location_overcrowding_count !== "N/A"
-        ) {
-          subtitle += ` / ${loc.location_overcrowding_count}`;
-        }
+      let subtitle = loc.location_address || "";
+      subtitle += ` · Count: ${loc.current_count}`;
+      if (loc.overcrowding_limit != null) {
+        subtitle += ` / ${loc.overcrowding_limit}`;
       }
 
       return new mapkit.MarkerAnnotation(coord, {
-        color: getMarkerColor(loc.location_color),
+        color: getMarkerColor(loc.location_color || "blue"),
         title: loc.location_name,
         subtitle,
         calloutEnabled: true,
@@ -193,11 +191,11 @@ export function LocationMap({
     annotationsRef.current = annotations;
 
     // Center on first location if available
-    if (locations.length > 0) {
-      const first = locations[0];
+    if (mappable.length > 0) {
+      const first = mappable[0];
       const center = new mapkit.Coordinate(
-        first.location_latitude,
-        first.location_longitude
+        first.location_latitude!,
+        first.location_longitude!
       );
       map.setRegionAnimated(
         new mapkit.CoordinateRegion(

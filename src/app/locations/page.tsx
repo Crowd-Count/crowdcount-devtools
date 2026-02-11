@@ -26,7 +26,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, MapPin, X, Edit2 } from "lucide-react";
-import type { LocationDevice, Location } from "@/lib/types";
+import type { Location } from "@/lib/types";
 
 // Dynamic import for map to avoid SSR issues
 const LocationMap = dynamic(
@@ -56,15 +56,19 @@ const colorOptions = [
   { name: "brown", hex: "#a16207" },
 ];
 
+interface CounterEntry {
+  device_id: string;
+  device_label: string;
+}
+
 export default function LocationsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
-  const [deviceId, setDeviceId] = useState("");
-  const [deviceLabel, setDeviceLabel] = useState("");
-  const [additionalCounters, setAdditionalCounters] = useState<LocationDevice[]>([]);
+  const [overcrowdingLimit, setOvercrowdingLimit] = useState("");
+  const [counters, setCounters] = useState<CounterEntry[]>([{ device_id: "", device_label: "" }]);
   const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedColor, setSelectedColor] = useState("blue");
   const [selectedIcon, setSelectedIcon] = useState("");
@@ -73,37 +77,37 @@ export default function LocationsPage() {
 
   const { data: locations, isLoading } = useQuery({
     queryKey: ["locationsWithData"],
-    queryFn: () => api.getAllLocationsWithData(),
+    queryFn: () => api.getAllMapLocations(),
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPosition) throw new Error("Please select a location on the map");
-      // Build the list of additional devices (excluding the primary, filtering out empty IDs)
-      const validCounters = additionalCounters.filter((c) => c.id.trim() !== "");
-      const additionalDevices = validCounters.length > 0
-        ? validCounters.map((c) => ({
-            id: c.id.trim(),
-            label: c.label.trim() || `Counter ${validCounters.indexOf(c) + 2}`,
-          }))
-        : undefined;
-      return api.addLocation(
-        {
-          location_name: name,
-          location_address: address,
-          location_device: deviceId,
-          location_latitude: selectedPosition.lat,
-          location_longitude: selectedPosition.lng,
-          location_color: selectedColor,
-          location_icon: selectedIcon,
-        },
-        additionalDevices
+      const validCounters = counters.filter((c) => c.device_id.trim() !== "");
+      if (validCounters.length === 0) throw new Error("Add at least one counter");
+      const deviceIds = validCounters.map((c) => c.device_id.trim());
+      const deviceLabels: Record<string, string> = {};
+      for (const c of validCounters) {
+        if (c.device_label.trim()) {
+          deviceLabels[c.device_id.trim()] = c.device_label.trim();
+        }
+      }
+      return api.createLocation(
+        deviceIds,
+        name,
+        address,
+        selectedPosition.lat,
+        selectedPosition.lng,
+        selectedColor,
+        selectedIcon,
+        overcrowdingLimit ? Number(overcrowdingLimit) : undefined,
+        Object.keys(deviceLabels).length > 0 ? deviceLabels : undefined,
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
-      toast.success("Location added successfully");
+      toast.success("Location created successfully");
       resetForm();
     },
     onError: (error: Error) => {
@@ -112,7 +116,8 @@ export default function LocationsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (deviceId: string) => api.removeLocation(deviceId),
+    mutationFn: (location: Location) =>
+      api.deleteLocation(location.location_id, location.devices.map((d) => d.device_id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
@@ -128,29 +133,30 @@ export default function LocationsPage() {
       if (!selectedPosition) throw new Error("Please select a location on the map");
       if (!editingLocation) throw new Error("No location selected for editing");
 
-      // First, delete the old location
-      await api.removeLocation(editingLocation.location_device);
+      const validCounters = counters.filter((c) => c.device_id.trim() !== "");
+      if (validCounters.length === 0) throw new Error("Add at least one counter");
 
-      // Then create the new one with updated info
-      const validCounters = additionalCounters.filter((c) => c.id.trim() !== "");
-      const additionalDevices = validCounters.length > 0
-        ? validCounters.map((c) => ({
-            id: c.id.trim(),
-            label: c.label.trim() || `Counter ${validCounters.indexOf(c) + 2}`,
-          }))
-        : undefined;
+      const deviceIds = validCounters.map((c) => c.device_id.trim());
+      const deviceLabels: Record<string, string> = {};
+      for (const c of validCounters) {
+        if (c.device_label.trim()) {
+          deviceLabels[c.device_id.trim()] = c.device_label.trim();
+        }
+      }
 
-      return api.addLocation(
+      return api.updateLocation(
+        editingLocation.location_id,
+        deviceIds,
         {
-          location_name: name,
-          location_address: address,
-          location_device: deviceId,
-          location_latitude: selectedPosition.lat,
-          location_longitude: selectedPosition.lng,
-          location_color: selectedColor,
-          location_icon: selectedIcon,
+          name,
+          address,
+          latitude: selectedPosition.lat,
+          longitude: selectedPosition.lng,
+          color: selectedColor,
+          icon: selectedIcon,
+          overcrowding_limit: overcrowdingLimit ? Number(overcrowdingLimit) : null,
+          device_labels: Object.keys(deviceLabels).length > 0 ? deviceLabels : undefined,
         },
-        additionalDevices
       );
     },
     onSuccess: () => {
@@ -170,9 +176,8 @@ export default function LocationsPage() {
     setEditingLocation(null);
     setName("");
     setAddress("");
-    setDeviceId("");
-    setDeviceLabel("");
-    setAdditionalCounters([]);
+    setOvercrowdingLimit("");
+    setCounters([{ device_id: "", device_label: "" }]);
     setSelectedPosition(null);
     setSelectedColor("blue");
     setSelectedIcon("");
@@ -182,45 +187,44 @@ export default function LocationsPage() {
     setIsEditing(true);
     setEditingLocation(location);
     setName(location.location_name);
-    setAddress(location.location_address);
-    setDeviceId(location.location_device);
-    // Set device label from the first entry in device_breakdown if available
-    if (location.device_breakdown && location.device_breakdown.length > 0) {
-      setDeviceLabel(location.device_breakdown[0].device_label || "");
-      // Load additional counters (skip the first one as it's the primary)
-      const additional = location.device_breakdown.slice(1).map((d) => ({
-        id: d.device_id,
-        label: d.device_label,
-      }));
-      setAdditionalCounters(additional);
-    } else {
-      setDeviceLabel("");
-      setAdditionalCounters([]);
-    }
-    setSelectedPosition({ lat: location.location_latitude, lng: location.location_longitude });
+    setAddress(location.location_address || "");
+    setOvercrowdingLimit(location.overcrowding_limit != null ? String(location.overcrowding_limit) : "");
+    setCounters(
+      location.devices.length > 0
+        ? location.devices.map((d) => ({ device_id: d.device_id, device_label: d.device_label }))
+        : [{ device_id: "", device_label: "" }]
+    );
+    setSelectedPosition(
+      location.location_latitude != null && location.location_longitude != null
+        ? { lat: location.location_latitude, lng: location.location_longitude }
+        : null
+    );
     setSelectedColor(location.location_color || "blue");
     setSelectedIcon(location.location_icon || "");
     setIsOpen(true);
   }
 
   function addCounter() {
-    setAdditionalCounters([...additionalCounters, { id: "", label: "" }]);
+    setCounters([...counters, { device_id: "", device_label: "" }]);
   }
 
   function removeCounter(index: number) {
-    setAdditionalCounters(additionalCounters.filter((_, i) => i !== index));
+    if (counters.length <= 1) return;
+    setCounters(counters.filter((_, i) => i !== index));
   }
 
-  function updateCounter(index: number, field: "id" | "label", value: string) {
-    const updated = [...additionalCounters];
+  function updateCounter(index: number, field: "device_id" | "device_label", value: string) {
+    const updated = [...counters];
     updated[index] = { ...updated[index], [field]: value };
-    setAdditionalCounters(updated);
+    setCounters(updated);
   }
 
   // Helper to get hex from color name for display
   const getHexFromName = (colorName: string) => {
     return colorOptions.find(c => c.name === colorName)?.hex || "#3b82f6";
   };
+
+  const hasValidCounters = counters.some((c) => c.device_id.trim() !== "");
 
   return (
     <div className="space-y-8">
@@ -267,6 +271,17 @@ export default function LocationsPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="overcrowdingLimit">Overcrowding Limit (optional)</Label>
+                <Input
+                  id="overcrowdingLimit"
+                  type="number"
+                  value={overcrowdingLimit}
+                  onChange={(e) => setOvercrowdingLimit(e.target.value)}
+                  placeholder="e.g., 100"
+                />
+              </div>
+
               {/* Counters Section */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -282,53 +297,26 @@ export default function LocationsPage() {
                   </Button>
                 </div>
 
-                {/* Primary Counter */}
-                <div className="grid grid-cols-2 gap-2 p-3 border rounded-lg bg-muted/30">
-                  <div className="space-y-1">
-                    <Label htmlFor="device" className="text-xs text-muted-foreground">
-                      Primary Counter ID
-                    </Label>
-                    <Input
-                      id="device"
-                      value={deviceId}
-                      onChange={(e) => setDeviceId(e.target.value)}
-                      placeholder="e.g., A1234"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="deviceLabel" className="text-xs text-muted-foreground">
-                      Label (optional)
-                    </Label>
-                    <Input
-                      id="deviceLabel"
-                      value={deviceLabel}
-                      onChange={(e) => setDeviceLabel(e.target.value)}
-                      placeholder="e.g., Main Entrance"
-                    />
-                  </div>
-                </div>
-
-                {/* Additional Counters */}
-                {additionalCounters.map((counter, index) => (
+                {counters.map((counter, index) => (
                   <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-3 border rounded-lg">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">
                         Counter ID
                       </Label>
                       <Input
-                        value={counter.id}
-                        onChange={(e) => updateCounter(index, "id", e.target.value)}
-                        placeholder="e.g., B5678"
+                        value={counter.device_id}
+                        onChange={(e) => updateCounter(index, "device_id", e.target.value)}
+                        placeholder="e.g., T1234"
                       />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">
-                        Label
+                        Label (optional)
                       </Label>
                       <Input
-                        value={counter.label}
-                        onChange={(e) => updateCounter(index, "label", e.target.value)}
-                        placeholder="e.g., Side Entrance"
+                        value={counter.device_label}
+                        onChange={(e) => updateCounter(index, "device_label", e.target.value)}
+                        placeholder="e.g., Main Entrance"
                       />
                     </div>
                     <div className="flex items-end">
@@ -337,6 +325,7 @@ export default function LocationsPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => removeCounter(index)}
+                        disabled={counters.length <= 1}
                         className="h-9 w-9 text-muted-foreground hover:text-destructive"
                       >
                         <X className="h-4 w-4" />
@@ -345,9 +334,9 @@ export default function LocationsPage() {
                   </div>
                 ))}
 
-                {additionalCounters.length > 0 && (
+                {counters.length > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    {additionalCounters.length + 1} counter{additionalCounters.length > 0 ? "s" : ""} total. Counts will be aggregated for this location.
+                    {counters.filter((c) => c.device_id.trim()).length} counter{counters.filter((c) => c.device_id.trim()).length !== 1 ? "s" : ""} total. Counts will be aggregated for this location.
                   </p>
                 )}
               </div>
@@ -398,7 +387,7 @@ export default function LocationsPage() {
               <Button
                 className="w-full"
                 onClick={() => isEditing ? editMutation.mutate() : createMutation.mutate()}
-                disabled={!name || !deviceId || !selectedPosition || createMutation.isPending || editMutation.isPending}
+                disabled={!name || !hasValidCounters || !selectedPosition || createMutation.isPending || editMutation.isPending}
               >
                 {isEditing
                   ? (editMutation.isPending ? "Saving..." : "Save Changes")
@@ -435,56 +424,43 @@ export default function LocationsPage() {
                   <TableHead>Address</TableHead>
                   <TableHead>Counters</TableHead>
                   <TableHead>Current Count</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {locations.map((location) => (
-                  <TableRow key={location.location_device}>
+                  <TableRow key={location.location_id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getHexFromName(location.location_color) || location.location_color }}
+                          style={{ backgroundColor: getHexFromName(location.location_color || "blue") }}
                         />
                         <span className="font-medium">{location.location_name}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{location.location_address}</TableCell>
+                    <TableCell>{location.location_address || "-"}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm">{location.location_device}</code>
-                        {location.device_breakdown && location.device_breakdown.length > 1 && (
-                          <Badge variant="secondary" className="text-xs">
-                            +{location.device_breakdown.length - 1} more
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {location.devices.map((d) => (
+                          <Badge key={d.device_id} variant="secondary" className="text-xs">
+                            {d.device_id}{d.device_label ? ` (${d.device_label})` : ""}
                           </Badge>
+                        ))}
+                        {location.devices.length === 0 && (
+                          <span className="text-muted-foreground text-sm">No devices</span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span>{location.location_current_count ?? "-"}</span>
-                        {location.location_overcrowding_count &&
-                          location.location_overcrowding_count !== "N/A" && (
-                            <span className="text-muted-foreground">
-                              / {location.location_overcrowding_count}
-                            </span>
-                          )}
+                        <span>{location.current_count}</span>
+                        {location.overcrowding_limit != null && (
+                          <span className="text-muted-foreground">
+                            / {location.overcrowding_limit}
+                          </span>
+                        )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          location.location_comparison === "above"
-                            ? "destructive"
-                            : location.location_comparison === "below"
-                            ? "secondary"
-                            : "outline"
-                        }
-                      >
-                        {location.location_comparison || "neutral"}
-                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -499,7 +475,7 @@ export default function LocationsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => deleteMutation.mutate(location.location_device)}
+                          onClick={() => deleteMutation.mutate(location)}
                           disabled={deleteMutation.isPending}
                         >
                           <Trash2 className="h-4 w-4" />

@@ -1,7 +1,10 @@
-import type { Alert, Location, LocationDevice, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
+import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://api.crowdcount.tech";
+const TESTING = true;
+const API_BASE = TESTING
+  ? "https://api-staging.crowdcount.tech"
+  : "https://api.crowdcount.tech";
 
 interface SignedRequestOptions extends Omit<RequestInit, "headers"> {
   headers?: Record<string, string>;
@@ -162,38 +165,43 @@ class CrowdCountAPI {
   }
 
   // Locations
-  async getAllLocations(): Promise<Location[]> {
-    const result = await this.fetch<{ locations: Location[] }>("/get_all_locations");
+  private buildCredentials(deviceIds: string[]): { device_id: string; password: string }[] {
+    return deviceIds.map((id) => ({ device_id: id, password: "" }));
+  }
+
+  async getAllMapLocations(): Promise<Location[]> {
+    const result = await this.fetch<{ locations: Location[] }>("/get_all_map_locations");
     return result.locations || [];
   }
 
-  async getAllLocationsWithData(): Promise<Location[]> {
-    const result = await this.fetch<{ locations: Location[] }>(
-      "/get_all_location_data_with_extra"
-    );
-    return result.locations || [];
-  }
-
-  async addLocation(
-    location: Omit<Location, "location_current_count" | "location_comparison" | "location_overcrowding_count" | "device_breakdown">,
-    additionalDevices?: LocationDevice[]
-  ): Promise<{ status: string }> {
+  async createLocation(
+    deviceIds: string[],
+    name: string,
+    address: string,
+    lat: number,
+    lng: number,
+    color: string,
+    icon: string,
+    overcrowdingLimit?: number,
+    deviceLabels?: Record<string, string>,
+  ): Promise<{ status: string; location_id: string }> {
     const body: Record<string, unknown> = {
-      password: this.adminPassword,
-      name: location.location_name,
-      address: location.location_address,
-      device: location.location_device,
-      latitude: location.location_latitude,
-      longitude: location.location_longitude,
-      color: location.location_color,
-      icon: location.location_icon,
+      admin_password: this.adminPassword,
+      credentials: this.buildCredentials(deviceIds),
+      name,
+      address,
+      latitude: lat,
+      longitude: lng,
+      color,
+      icon,
     };
-
-    if (additionalDevices && additionalDevices.length > 0) {
-      body.devices = additionalDevices;
+    if (overcrowdingLimit !== undefined) {
+      body.overcrowding_limit = overcrowdingLimit;
     }
-
-    return this.fetch("/add_location", {
+    if (deviceLabels) {
+      body.device_labels = deviceLabels;
+    }
+    return this.fetch("/create_location", {
       method: "POST",
       body: JSON.stringify(body),
       sign: true,
@@ -201,8 +209,76 @@ class CrowdCountAPI {
     });
   }
 
-  async removeLocation(deviceId: string): Promise<{ status: string }> {
-    return this.authFetch("/remove_location", { location_device: deviceId }, true);
+  async updateLocation(
+    locationId: string,
+    deviceIds: string[],
+    updates: Record<string, unknown>,
+  ): Promise<{ status: string }> {
+    return this.fetch("/update_location", {
+      method: "POST",
+      body: JSON.stringify({
+        admin_password: this.adminPassword,
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+        ...updates,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  async deleteLocation(locationId: string, deviceIds: string[]): Promise<{ status: string }> {
+    return this.fetch("/delete_location", {
+      method: "POST",
+      body: JSON.stringify({
+        admin_password: this.adminPassword,
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  async addDeviceToLocation(
+    locationId: string,
+    existingDeviceIds: string[],
+    newDeviceId: string,
+    label?: string,
+  ): Promise<{ status: string }> {
+    const body: Record<string, unknown> = {
+      admin_password: this.adminPassword,
+      credentials: this.buildCredentials(existingDeviceIds),
+      location_id: locationId,
+      device_id: newDeviceId,
+    };
+    if (label) {
+      body.device_label = label;
+    }
+    return this.fetch("/add_device_to_location", {
+      method: "POST",
+      body: JSON.stringify(body),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  async removeDeviceFromLocation(
+    locationId: string,
+    existingDeviceIds: string[],
+    targetDeviceId: string,
+  ): Promise<{ status: string }> {
+    return this.fetch("/remove_device_from_location", {
+      method: "POST",
+      body: JSON.stringify({
+        admin_password: this.adminPassword,
+        credentials: this.buildCredentials(existingDeviceIds),
+        location_id: locationId,
+        device_id: targetDeviceId,
+      }),
+      sign: true,
+      idempotent: true,
+    });
   }
 
   // Alerts

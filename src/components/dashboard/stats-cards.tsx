@@ -49,7 +49,7 @@ export function StatsCards() {
 
   const { data: locations } = useQuery({
     queryKey: ["locations"],
-    queryFn: () => api.getAllLocations(),
+    queryFn: () => api.getAllMapLocations(),
   });
 
   const { data: pendingReports } = useQuery({

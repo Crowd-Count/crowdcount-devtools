@@ -9,27 +9,25 @@ export interface Device {
 }
 
 export interface LocationDevice {
-  id: string;
-  label: string;
+  device_id: string;
+  device_label: string;
 }
 
 export interface Location {
+  location_id: string;
   location_name: string;
-  location_address: string;
-  location_device: string;
-  location_latitude: number;
-  location_longitude: number;
-  location_color: string;
-  location_icon: string;
-  location_current_count?: number;
-  location_comparison?: string;
-  location_overcrowding_count?: number | string;
-  device_breakdown?: {
-    device_id: string;
-    device_label: string;
-    count: number;
-    overcrowding: number | null;
-  }[];
+  on_map: number;  // 0 or 1
+  location_address: string | null;
+  location_latitude: number | null;
+  location_longitude: number | null;
+  location_color: string | null;
+  location_icon: string | null;
+  overcrowding_limit: number | null;
+  is_auto: number;  // 0 or 1
+  current_count: number;
+  devices: LocationDevice[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Alert {
