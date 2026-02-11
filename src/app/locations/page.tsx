@@ -117,7 +117,7 @@ export default function LocationsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (location: Location) =>
-      api.deleteLocation(location.location_id, location.devices.map((d) => d[0])),
+      api.deleteLocation(location.location_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
@@ -230,7 +230,7 @@ export default function LocationsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Locations</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Map Locations</h2>
           <p className="text-muted-foreground">
             Manage map locations and device assignments
           </p>

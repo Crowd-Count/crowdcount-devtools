@@ -268,17 +268,10 @@ class CrowdCountAPI {
     });
   }
 
-  async deleteLocation(locationId: string, deviceIds: string[]): Promise<{ message: string }> {
-    return this.fetch("/delete_location", {
-      method: "POST",
-      body: JSON.stringify({
-        admin_password: this.adminPassword,
-        credentials: this.buildCredentials(deviceIds),
-        location_id: locationId,
-      }),
-      sign: true,
-      idempotent: true,
-    });
+  async deleteLocation(locationId: string): Promise<{ message: string }> {
+    return this.authFetch("/delete_location", {
+      location_id: locationId,
+    }, true);
   }
 
   async addDeviceToLocation(
