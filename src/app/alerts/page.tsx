@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Trash2, Bell, AlertTriangle, PartyPopper, Shield, FileText, Leaf, Smartphone, Globe, Monitor } from "lucide-react";
+import { Plus, Trash2, Bell, AlertTriangle, PartyPopper, Shield, FileText, Leaf, Smartphone, Globe } from "lucide-react";
 import { format } from "date-fns";
 
 const alertTypes = [
@@ -46,14 +46,11 @@ const alertTypes = [
   { value: "leaf", label: "Leaf", icon: Leaf },
 ];
 
-type TargetingMode = "universal" | "version" | "legacy";
+type TargetingMode = "universal" | "version";
 
 const VERSION_REGEX = /^\d+\.\d+\.\d+$/;
 
 function getTargetingLabel(alert: Alert): { label: string; variant: "default" | "secondary" | "outline" } {
-  if (alert.legacy_only) {
-    return { label: "Legacy only", variant: "outline" };
-  }
   if (alert.min_app_version || alert.max_app_version) {
     const parts: string[] = [];
     if (alert.min_app_version) parts.push(`>= ${alert.min_app_version}`);
@@ -134,7 +131,6 @@ export default function AlertsPage() {
         expires: format(expiryDate, "yyyy-MM-dd HH:mm:ss"),
         min_app_version: targetingMode === "version" && minVersion ? minVersion : undefined,
         max_app_version: targetingMode === "version" && maxVersion ? maxVersion : undefined,
-        legacy_only: targetingMode === "legacy" ? 1 : undefined,
       });
     },
     onSuccess: () => {
@@ -258,12 +254,6 @@ export default function AlertsPage() {
                         Specific iOS versions
                       </div>
                     </SelectItem>
-                    <SelectItem value="legacy">
-                      <div className="flex items-center gap-2">
-                        <Monitor className="h-4 w-4" />
-                        Legacy apps only
-                      </div>
-                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {targetingMode === "version" && (
@@ -287,11 +277,6 @@ export default function AlertsPage() {
                       />
                     </div>
                   </div>
-                )}
-                {targetingMode === "legacy" && (
-                  <p className="text-xs text-muted-foreground pt-1">
-                    Only old iOS apps that don&apos;t send a version header will see this alert. Useful for &quot;please update&quot; messages.
-                  </p>
                 )}
               </div>
               <div className="space-y-4">

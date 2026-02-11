@@ -69,6 +69,18 @@ function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string
 
 function LocationRow({ location }: { location: EnrichedLocation }) {
   const [expanded, setExpanded] = useState(false);
+  const queryClient = useQueryClient();
+
+  const adjustMutation = useMutation({
+    mutationFn: (delta: number) => api.adjustLocationCount(location.location_id, delta),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success(`${location.location_name || "Location"}: count → ${data.new_count}`);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   return (
     <>
@@ -129,12 +141,30 @@ function LocationRow({ location }: { location: EnrichedLocation }) {
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-2">
-            <span className="font-mono">{location.current_count}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => { e.stopPropagation(); adjustMutation.mutate(-1); }}
+              disabled={adjustMutation.isPending}
+            >
+              <Minus className="h-3 w-3" />
+            </Button>
+            <span className="font-mono min-w-[2ch] text-center">{location.current_count}</span>
             {location.overcrowding_limit != null && (
               <span className="text-muted-foreground">
                 / {location.overcrowding_limit}
               </span>
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => { e.stopPropagation(); adjustMutation.mutate(1); }}
+              disabled={adjustMutation.isPending}
+            >
+              <Plus className="h-3 w-3" />
+            </Button>
           </div>
         </TableCell>
       </TableRow>

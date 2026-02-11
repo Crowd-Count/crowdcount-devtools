@@ -43,7 +43,6 @@ export interface Alert {
   alert_type: "info" | "warning" | "celebration" | "privacy" | "terms-of-use" | "leaf";
   min_app_version?: string | null;
   max_app_version?: string | null;
-  legacy_only?: number | null;
 }
 
 export interface Report {

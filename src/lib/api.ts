@@ -207,6 +207,13 @@ class CrowdCountAPI {
     }, true);
   }
 
+  async adjustLocationCount(locationId: string, delta: number): Promise<{ message: string; new_count: number }> {
+    return this.authFetch("/admin/location/adjust_count", {
+      location_id: locationId,
+      delta,
+    }, true);
+  }
+
   async createLocation(
     deviceIds: string[],
     name: string,
