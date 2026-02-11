@@ -75,12 +75,14 @@ export interface DeviceListResponse {
 }
 
 export interface CreateUserResponse {
-  status: string;
+  success: boolean;
   users: {
-    device_id: string;
-    user_id?: string;  // Deprecated: use device_id
+    user_id: string;
+    device_id?: string;  // not returned by server
     password: string;
+    status?: string;
   }[];
+  errors?: string[];
 }
 
 export interface Ad {
@@ -88,8 +90,7 @@ export interface Ad {
   title: string;
   description: string;
   image_path: string | null;
-  device_id: string;
-  primary_device?: string; // The lead device for location matching (for grouped devices)
+  location_id: string;
   duration_hours: number;
   total_price: number;
   cta_text: string;

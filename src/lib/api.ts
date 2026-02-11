@@ -101,13 +101,13 @@ class CrowdCountAPI {
   }
 
   // Health & Status
-  async ping(): Promise<{ status: string }> {
+  async ping(): Promise<{ message: string }> {
     return this.fetch("/ping", { sign: true });
   }
 
-  async pingWithLatency(): Promise<{ status: string; latencyMs: number }> {
+  async pingWithLatency(): Promise<{ message: string; latencyMs: number }> {
     const start = performance.now();
-    const result = await this.fetch<{ status: string }>("/ping", { sign: true });
+    const result = await this.fetch<{ message: string }>("/ping", { sign: true });
     const latencyMs = Math.round(performance.now() - start);
     return { ...result, latencyMs };
   }
@@ -174,7 +174,7 @@ class CrowdCountAPI {
     }, true);
   }
 
-  async deleteUser(deviceId: string): Promise<{ status: string }> {
+  async deleteUser(deviceId: string): Promise<{ success: boolean; message: string }> {
     return this.authFetch("/delete_user", { device_id: deviceId }, true);
   }
 
@@ -354,7 +354,7 @@ class CrowdCountAPI {
     });
   }
 
-  async expireAlert(alertId: string): Promise<{ status: string }> {
+  async expireAlert(alertId: string): Promise<{ message: string }> {
     return this.fetch("/expire_alert", {
       method: "POST",
       body: JSON.stringify({ alert_id: alertId, password: this.adminPassword }),
@@ -374,7 +374,7 @@ class CrowdCountAPI {
     return result.reports || [];
   }
 
-  async resolveReport(reportId: string): Promise<{ status: string }> {
+  async resolveReport(reportId: string): Promise<{ message: string }> {
     return this.fetch("/resolve_report", {
       method: "POST",
       body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
@@ -383,7 +383,7 @@ class CrowdCountAPI {
     });
   }
 
-  async deleteReport(reportId: string): Promise<{ status: string }> {
+  async deleteReport(reportId: string): Promise<{ message: string }> {
     return this.fetch("/delete_report", {
       method: "POST",
       body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
@@ -395,17 +395,17 @@ class CrowdCountAPI {
   // Overcrowding
   async getOvercrowding(deviceId: string): Promise<number | null> {
     try {
-      const result = await this.fetch<{ overcrowding_value: number | string }>(
+      const result = await this.fetch<{ overcrowding: number | string }>(
         `/get_overcrowding?device_name=${deviceId}`
       );
-      if (result.overcrowding_value === "N/A") return null;
-      return Number(result.overcrowding_value);
+      if (result.overcrowding === "N/A") return null;
+      return Number(result.overcrowding);
     } catch {
       return null;
     }
   }
 
-  async setOvercrowding(deviceId: string, value: number, password: string): Promise<{ status: string }> {
+  async setOvercrowding(deviceId: string, value: number, password: string): Promise<{ message: string }> {
     return this.fetch("/add_overcrowding", {
       method: "POST",
       body: JSON.stringify({

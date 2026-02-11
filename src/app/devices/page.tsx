@@ -80,7 +80,12 @@ export default function DevicesPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["allDevices"] });
       queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
-      setCreatedUsers(data.users || []);
+      setCreatedUsers(
+        (data.users || []).map((u) => ({
+          device_id: u.user_id || u.device_id || "",
+          password: u.password,
+        }))
+      );
       toast.success(`Created ${data.users?.length || 0} user(s)`);
     },
     onError: (error: Error) => {
