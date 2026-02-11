@@ -184,11 +184,12 @@ class CrowdCountAPI {
     icon: string,
     overcrowdingLimit?: number,
     deviceLabels?: Record<string, string>,
-  ): Promise<{ status: string; location_id: string }> {
+  ): Promise<{ message: string; location_id: string }> {
     const body: Record<string, unknown> = {
       admin_password: this.adminPassword,
       credentials: this.buildCredentials(deviceIds),
       name,
+      on_map: true,
       address,
       latitude: lat,
       longitude: lng,
@@ -213,7 +214,7 @@ class CrowdCountAPI {
     locationId: string,
     deviceIds: string[],
     updates: Record<string, unknown>,
-  ): Promise<{ status: string }> {
+  ): Promise<{ message: string }> {
     return this.fetch("/update_location", {
       method: "POST",
       body: JSON.stringify({
@@ -227,7 +228,7 @@ class CrowdCountAPI {
     });
   }
 
-  async deleteLocation(locationId: string, deviceIds: string[]): Promise<{ status: string }> {
+  async deleteLocation(locationId: string, deviceIds: string[]): Promise<{ message: string }> {
     return this.fetch("/delete_location", {
       method: "POST",
       body: JSON.stringify({
@@ -244,16 +245,18 @@ class CrowdCountAPI {
     locationId: string,
     existingDeviceIds: string[],
     newDeviceId: string,
+    newDevicePassword: string,
     label?: string,
-  ): Promise<{ status: string }> {
+  ): Promise<{ message: string }> {
     const body: Record<string, unknown> = {
       admin_password: this.adminPassword,
       credentials: this.buildCredentials(existingDeviceIds),
       location_id: locationId,
-      device_id: newDeviceId,
+      new_device_id: newDeviceId,
+      new_device_password: newDevicePassword,
     };
     if (label) {
-      body.device_label = label;
+      body.label = label;
     }
     return this.fetch("/add_device_to_location", {
       method: "POST",
@@ -267,14 +270,14 @@ class CrowdCountAPI {
     locationId: string,
     existingDeviceIds: string[],
     targetDeviceId: string,
-  ): Promise<{ status: string }> {
+  ): Promise<{ message: string }> {
     return this.fetch("/remove_device_from_location", {
       method: "POST",
       body: JSON.stringify({
         admin_password: this.adminPassword,
         credentials: this.buildCredentials(existingDeviceIds),
         location_id: locationId,
-        device_id: targetDeviceId,
+        target_device_id: targetDeviceId,
       }),
       sign: true,
       idempotent: true,

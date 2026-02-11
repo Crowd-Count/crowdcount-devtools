@@ -8,10 +8,8 @@ export interface Device {
   is_updated?: boolean; // true = matches target, false = not updated (outdated or no version reported)
 }
 
-export interface LocationDevice {
-  device_id: string;
-  device_label: string;
-}
+// Server returns devices as [device_id, label] tuples
+export type LocationDevice = [string, string];
 
 export interface Location {
   location_id: string;
@@ -25,7 +23,7 @@ export interface Location {
   overcrowding_limit: number | null;
   is_auto: number;  // 0 or 1
   current_count: number;
-  devices: LocationDevice[];
+  devices: LocationDevice[];  // [[device_id, label], ...]
   created_at: string;
   updated_at: string;
 }

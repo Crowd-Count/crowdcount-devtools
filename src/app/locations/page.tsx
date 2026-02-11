@@ -57,8 +57,8 @@ const colorOptions = [
 ];
 
 interface CounterEntry {
-  device_id: string;
-  device_label: string;
+  id: string;
+  label: string;
 }
 
 export default function LocationsPage() {
@@ -68,7 +68,7 @@ export default function LocationsPage() {
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [overcrowdingLimit, setOvercrowdingLimit] = useState("");
-  const [counters, setCounters] = useState<CounterEntry[]>([{ device_id: "", device_label: "" }]);
+  const [counters, setCounters] = useState<CounterEntry[]>([{ id: "", label: "" }]);
   const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedColor, setSelectedColor] = useState("blue");
   const [selectedIcon, setSelectedIcon] = useState("");
@@ -83,13 +83,13 @@ export default function LocationsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPosition) throw new Error("Please select a location on the map");
-      const validCounters = counters.filter((c) => c.device_id.trim() !== "");
+      const validCounters = counters.filter((c) => c.id.trim() !== "");
       if (validCounters.length === 0) throw new Error("Add at least one counter");
-      const deviceIds = validCounters.map((c) => c.device_id.trim());
+      const deviceIds = validCounters.map((c) => c.id.trim());
       const deviceLabels: Record<string, string> = {};
       for (const c of validCounters) {
-        if (c.device_label.trim()) {
-          deviceLabels[c.device_id.trim()] = c.device_label.trim();
+        if (c.label.trim()) {
+          deviceLabels[c.id.trim()] = c.label.trim();
         }
       }
       return api.createLocation(
@@ -117,7 +117,7 @@ export default function LocationsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (location: Location) =>
-      api.deleteLocation(location.location_id, location.devices.map((d) => d.device_id)),
+      api.deleteLocation(location.location_id, location.devices.map((d) => d[0])),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
@@ -133,14 +133,14 @@ export default function LocationsPage() {
       if (!selectedPosition) throw new Error("Please select a location on the map");
       if (!editingLocation) throw new Error("No location selected for editing");
 
-      const validCounters = counters.filter((c) => c.device_id.trim() !== "");
+      const validCounters = counters.filter((c) => c.id.trim() !== "");
       if (validCounters.length === 0) throw new Error("Add at least one counter");
 
-      const deviceIds = validCounters.map((c) => c.device_id.trim());
+      const deviceIds = validCounters.map((c) => c.id.trim());
       const deviceLabels: Record<string, string> = {};
       for (const c of validCounters) {
-        if (c.device_label.trim()) {
-          deviceLabels[c.device_id.trim()] = c.device_label.trim();
+        if (c.label.trim()) {
+          deviceLabels[c.id.trim()] = c.label.trim();
         }
       }
 
@@ -177,7 +177,7 @@ export default function LocationsPage() {
     setName("");
     setAddress("");
     setOvercrowdingLimit("");
-    setCounters([{ device_id: "", device_label: "" }]);
+    setCounters([{ id: "", label: "" }]);
     setSelectedPosition(null);
     setSelectedColor("blue");
     setSelectedIcon("");
@@ -191,8 +191,8 @@ export default function LocationsPage() {
     setOvercrowdingLimit(location.overcrowding_limit != null ? String(location.overcrowding_limit) : "");
     setCounters(
       location.devices.length > 0
-        ? location.devices.map((d) => ({ device_id: d.device_id, device_label: d.device_label }))
-        : [{ device_id: "", device_label: "" }]
+        ? location.devices.map((d) => ({ id: d[0], label: d[1] }))
+        : [{ id: "", label: "" }]
     );
     setSelectedPosition(
       location.location_latitude != null && location.location_longitude != null
@@ -205,7 +205,7 @@ export default function LocationsPage() {
   }
 
   function addCounter() {
-    setCounters([...counters, { device_id: "", device_label: "" }]);
+    setCounters([...counters, { id: "", label: "" }]);
   }
 
   function removeCounter(index: number) {
@@ -213,7 +213,7 @@ export default function LocationsPage() {
     setCounters(counters.filter((_, i) => i !== index));
   }
 
-  function updateCounter(index: number, field: "device_id" | "device_label", value: string) {
+  function updateCounter(index: number, field: "id" | "label", value: string) {
     const updated = [...counters];
     updated[index] = { ...updated[index], [field]: value };
     setCounters(updated);
@@ -224,7 +224,7 @@ export default function LocationsPage() {
     return colorOptions.find(c => c.name === colorName)?.hex || "#3b82f6";
   };
 
-  const hasValidCounters = counters.some((c) => c.device_id.trim() !== "");
+  const hasValidCounters = counters.some((c) => c.id.trim() !== "");
 
   return (
     <div className="space-y-8">
@@ -304,8 +304,8 @@ export default function LocationsPage() {
                         Counter ID
                       </Label>
                       <Input
-                        value={counter.device_id}
-                        onChange={(e) => updateCounter(index, "device_id", e.target.value)}
+                        value={counter.id}
+                        onChange={(e) => updateCounter(index, "id", e.target.value)}
                         placeholder="e.g., T1234"
                       />
                     </div>
@@ -314,8 +314,8 @@ export default function LocationsPage() {
                         Label (optional)
                       </Label>
                       <Input
-                        value={counter.device_label}
-                        onChange={(e) => updateCounter(index, "device_label", e.target.value)}
+                        value={counter.label}
+                        onChange={(e) => updateCounter(index, "label", e.target.value)}
                         placeholder="e.g., Main Entrance"
                       />
                     </div>
@@ -336,7 +336,7 @@ export default function LocationsPage() {
 
                 {counters.length > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    {counters.filter((c) => c.device_id.trim()).length} counter{counters.filter((c) => c.device_id.trim()).length !== 1 ? "s" : ""} total. Counts will be aggregated for this location.
+                    {counters.filter((c) => c.id.trim()).length} counter{counters.filter((c) => c.id.trim()).length !== 1 ? "s" : ""} total. Counts will be aggregated for this location.
                   </p>
                 )}
               </div>
@@ -443,8 +443,8 @@ export default function LocationsPage() {
                     <TableCell>
                       <div className="flex items-center gap-1 flex-wrap">
                         {location.devices.map((d) => (
-                          <Badge key={d.device_id} variant="secondary" className="text-xs">
-                            {d.device_id}{d.device_label ? ` (${d.device_label})` : ""}
+                          <Badge key={d[0]} variant="secondary" className="text-xs">
+                            {d[0]}{d[1] && d[1] !== "Counter" ? ` (${d[1]})` : ""}
                           </Badge>
                         ))}
                         {location.devices.length === 0 && (
