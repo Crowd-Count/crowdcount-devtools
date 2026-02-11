@@ -20,10 +20,12 @@ import type { Location } from "@/lib/types";
 
 function DeviceRow({ deviceId, label }: { deviceId: string; label: string }) {
   const queryClient = useQueryClient();
+  const [knownCount, setKnownCount] = useState<number | null>(null);
 
   const addMutation = useMutation({
     mutationFn: (delta: number) => api.addToDeviceCount(deviceId, delta),
     onSuccess: (data) => {
+      setKnownCount(data.new_count);
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
       toast.success(`${deviceId}: count → ${data.new_count}`);
     },
@@ -42,6 +44,11 @@ function DeviceRow({ deviceId, label }: { deviceId: string; label: string }) {
       {label && label !== "Counter" && (
         <span className="text-xs text-muted-foreground">{label}</span>
       )}
+      <span className="text-xs font-mono tabular-nums ml-2">
+        {knownCount !== null ? knownCount : (
+          <span className="text-muted-foreground italic">unknown</span>
+        )}
+      </span>
       <div className="ml-auto flex items-center gap-1">
         <Button
           variant="outline"
