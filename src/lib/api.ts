@@ -1,10 +1,31 @@
 import type { Alert, Location, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
-const TESTING = true;
-const API_BASE = TESTING
-  ? "https://api-staging.crowdcount.tech"
-  : "https://api.crowdcount.tech";
+export const API_ENVIRONMENTS = {
+  production: "https://api.crowdcount.tech",
+  staging: "https://api-staging.crowdcount.tech",
+} as const;
+
+export type ApiEnv = keyof typeof API_ENVIRONMENTS;
+
+const STORAGE_KEY = "crowdcount_api_env";
+
+function loadApiEnv(): ApiEnv {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "production" || stored === "staging") return stored;
+  }
+  return "staging"; // default
+}
+
+export function getApiEnv(): ApiEnv {
+  return loadApiEnv();
+}
+
+export function setApiEnv(env: ApiEnv) {
+  localStorage.setItem(STORAGE_KEY, env);
+  window.location.reload();
+}
 
 interface SignedRequestOptions extends Omit<RequestInit, "headers"> {
   headers?: Record<string, string>;
@@ -50,7 +71,7 @@ class CrowdCountAPI {
       headers["Idempotency-Key"] = generateIdempotencyKey();
     }
 
-    const url = `${API_BASE}${endpoint}`;
+    const url = `${API_ENVIRONMENTS[loadApiEnv()]}${endpoint}`;
     const response = await globalThis.fetch(url, {
       method,
       body: fetchOptions.body,
@@ -484,7 +505,7 @@ class CrowdCountAPI {
     if (!imagePath) return null;
     // imagePath is stored as "ad_images/filename.jpg", extract just the filename
     const filename = imagePath.split("/").pop();
-    return `${API_BASE}/ad-images/${filename}`;
+    return `${API_ENVIRONMENTS[loadApiEnv()]}/ad-images/${filename}`;
   }
 
   async createAdminAd(data: {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, API_ENVIRONMENTS, getApiEnv, setApiEnv, type ApiEnv } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Save, LogOut, RefreshCw, DollarSign, Loader2 } from "lucide-react";
+import { Save, LogOut, RefreshCw, DollarSign, Loader2, Server } from "lucide-react";
 
 export default function SettingsPage() {
-  const [apiUrl, setApiUrl] = useState("");
+  const [currentEnv, setCurrentEnv] = useState<ApiEnv>("staging");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState("30");
   const [pricePerHour, setPricePerHour] = useState("");
@@ -45,7 +45,7 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    setApiUrl(process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080");
+    setCurrentEnv(getApiEnv());
   }, []);
 
   function handleLogout() {
@@ -70,24 +70,40 @@ export default function SettingsPage() {
       <div className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>API Configuration</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5" />
+              API Environment
+            </CardTitle>
             <CardDescription>
-              Configure the connection to your CrowdCount server
+              Switch between production and staging servers
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="apiUrl">API Base URL</Label>
-              <Input
-                id="apiUrl"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="http://localhost:8080"
-              />
-              <p className="text-sm text-muted-foreground">
-                Set via NEXT_PUBLIC_API_URL environment variable
-              </p>
+            <div className="flex gap-2">
+              {(Object.keys(API_ENVIRONMENTS) as ApiEnv[]).map((env) => (
+                <Button
+                  key={env}
+                  variant={currentEnv === env ? "default" : "outline"}
+                  onClick={() => {
+                    if (env !== currentEnv) {
+                      setApiEnv(env);
+                    }
+                  }}
+                  className="flex-1 capitalize"
+                >
+                  {env}
+                </Button>
+              ))}
             </div>
+            <div className="rounded-md bg-muted p-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Current URL</span>
+                <code className="text-xs">{API_ENVIRONMENTS[currentEnv]}</code>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Switching environments will reload the page and require re-authentication.
+            </p>
           </CardContent>
         </Card>
 
