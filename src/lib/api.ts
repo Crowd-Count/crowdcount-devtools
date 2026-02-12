@@ -250,6 +250,32 @@ class CrowdCountAPI {
     });
   }
 
+  async createLocationSimple(
+    deviceIds: string[],
+    name: string,
+    deviceLabels?: Record<string, string>,
+    overcrowdingLimit?: number,
+  ): Promise<{ message: string; location_id: string }> {
+    const body: Record<string, unknown> = {
+      admin_password: this.adminPassword,
+      credentials: this.buildCredentials(deviceIds),
+      name,
+      on_map: false,
+    };
+    if (overcrowdingLimit !== undefined) {
+      body.overcrowding_limit = overcrowdingLimit;
+    }
+    if (deviceLabels && Object.keys(deviceLabels).length > 0) {
+      body.device_labels = deviceLabels;
+    }
+    return this.fetch("/create_location", {
+      method: "POST",
+      body: JSON.stringify(body),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
   async updateLocation(
     locationId: string,
     deviceIds: string[],
