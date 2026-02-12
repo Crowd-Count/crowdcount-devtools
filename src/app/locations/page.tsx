@@ -144,20 +144,40 @@ export default function LocationsPage() {
         }
       }
 
-      return api.updateLocation(
-        editingLocation.location_id,
-        deviceIds,
-        {
-          name,
-          address,
-          latitude: selectedPosition.lat,
-          longitude: selectedPosition.lng,
-          color: selectedColor,
-          icon: selectedIcon,
-          overcrowding_limit: overcrowdingLimit ? Number(overcrowdingLimit) : null,
-          device_labels: Object.keys(deviceLabels).length > 0 ? deviceLabels : undefined,
-        },
-      );
+      const metadataUpdates: Record<string, unknown> = {
+        name,
+        address,
+        latitude: selectedPosition.lat,
+        longitude: selectedPosition.lng,
+        color: selectedColor,
+        icon: selectedIcon,
+        overcrowding_limit: overcrowdingLimit ? Number(overcrowdingLimit) : null,
+      };
+
+      // Check if device set changed
+      const oldDeviceIds = editingLocation.devices.map((d) => d[0]).sort();
+      const newDeviceIds = [...deviceIds].sort();
+      const devicesChanged =
+        oldDeviceIds.length !== newDeviceIds.length ||
+        oldDeviceIds.some((id, i) => id !== newDeviceIds[i]);
+
+      if (devicesChanged) {
+        return api.replaceLocation(
+          editingLocation.location_id,
+          deviceIds,
+          Object.keys(deviceLabels).length > 0 ? deviceLabels : undefined,
+          metadataUpdates,
+        );
+      } else {
+        if (Object.keys(deviceLabels).length > 0) {
+          metadataUpdates.device_labels = deviceLabels;
+        }
+        return api.updateLocation(
+          editingLocation.location_id,
+          deviceIds,
+          metadataUpdates,
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });

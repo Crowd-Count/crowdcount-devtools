@@ -268,6 +268,31 @@ class CrowdCountAPI {
     });
   }
 
+  async replaceLocation(
+    locationId: string,
+    deviceIds: string[],
+    deviceLabels?: Record<string, string>,
+    metadataOverrides?: Record<string, unknown>,
+  ): Promise<{ message: string; location_id: string }> {
+    const body: Record<string, unknown> = {
+      admin_password: this.adminPassword,
+      credentials: this.buildCredentials(deviceIds),
+      location_id: locationId,
+    };
+    if (deviceLabels && Object.keys(deviceLabels).length > 0) {
+      body.device_labels = deviceLabels;
+    }
+    if (metadataOverrides) {
+      Object.assign(body, metadataOverrides);
+    }
+    return this.fetch("/replace_location", {
+      method: "POST",
+      body: JSON.stringify(body),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
   async deleteLocation(locationId: string): Promise<{ message: string }> {
     return this.authFetch("/delete_location", {
       location_id: locationId,
