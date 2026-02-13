@@ -1,37 +1,46 @@
 "use client";
 
 import Link from "next/link";
+import { useAdmin } from "@/lib/admin-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, MapPin, Cpu, MessageSquare, Plus } from "lucide-react";
+import { Bell, MapPin, Cpu, MessageSquare } from "lucide-react";
 
 export function QuickActions() {
+  const { hasPermission } = useAdmin();
+
   const actions = [
     {
       title: "Create Alert",
       description: "Send a new system-wide alert",
       href: "/alerts?action=create",
       icon: Bell,
+      permission: "alerts",
     },
     {
       title: "Add Location",
       description: "Register a new location on the map",
       href: "/locations?action=create",
       icon: MapPin,
+      permission: "locations",
     },
     {
       title: "Create Device",
       description: "Generate new device credentials",
       href: "/devices?action=create",
       icon: Cpu,
+      permission: "devices",
     },
     {
       title: "View Reports",
       description: "Check pending user reports",
       href: "/reports",
       icon: MessageSquare,
+      permission: "reports",
     },
   ];
+
+  const visibleActions = actions.filter((a) => hasPermission(a.permission));
 
   return (
     <Card>
@@ -39,7 +48,7 @@ export function QuickActions() {
         <CardTitle>Quick Actions</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2">
-        {actions.map((action) => (
+        {visibleActions.map((action) => (
           <Link key={action.title} href={action.href}>
             <Button
               variant="ghost"

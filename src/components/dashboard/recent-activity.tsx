@@ -2,23 +2,31 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAdmin } from "@/lib/admin-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 
 export function RecentActivity() {
+  const { hasPermission } = useAdmin();
+
+  const canReports = hasPermission("reports");
+  const canAlerts = hasPermission("alerts");
+
   const { data: reports } = useQuery({
     queryKey: ["recentReports"],
     queryFn: () => api.getAllReports(),
+    enabled: canReports,
   });
 
   const { data: alerts } = useQuery({
     queryKey: ["allAlerts"],
     queryFn: () => api.getAllAlerts(),
+    enabled: canAlerts,
   });
 
-  const recentReports = reports?.slice(0, 3) || [];
-  const recentAlerts = alerts?.slice(0, 3) || [];
+  const recentReports = canReports ? (reports?.slice(0, 3) || []) : [];
+  const recentAlerts = canAlerts ? (alerts?.slice(0, 3) || []) : [];
 
   return (
     <Card>
