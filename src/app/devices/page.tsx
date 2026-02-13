@@ -470,14 +470,10 @@ export default function DevicesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteMutation.mutate(device.user_id || "")}
-                        disabled={
-                          deleteMutation.isPending ||
-                          device.user_id === "Admin" ||
-                          device.user_id === "Demo"
-                        }
+                        disabled
+                        title="Device deletion is temporarily disabled"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-muted-foreground/40" />
                       </Button>
                     </TableCell>
                   </TableRow>

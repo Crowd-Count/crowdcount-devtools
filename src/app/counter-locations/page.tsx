@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, X } from "lucide-react";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, X, Search } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
 
 interface CounterEntry {
@@ -234,6 +234,7 @@ export default function CounterLocationsPage() {
   const [name, setName] = useState("");
   const [overcrowdingLimit, setOvercrowdingLimit] = useState("");
   const [counters, setCounters] = useState<CounterEntry[]>([{ id: "", label: "" }]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -387,6 +388,16 @@ export default function CounterLocationsPage() {
   const isAutoEdit = isEditing && editingLocation?.is_auto;
   const hasValidCounters = counters.some((c) => c.id.trim() !== "");
 
+  const filteredLocations = (locations ?? []).filter((loc) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    if (loc.location_name?.toLowerCase().includes(q)) return true;
+    if (loc.location_id.toLowerCase().includes(q)) return true;
+    return loc.devices.some(([deviceId, label]) =>
+      deviceId.toLowerCase().includes(q) || label?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -519,14 +530,25 @@ export default function CounterLocationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            All Locations ({locations?.length ?? 0})
-          </CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>
+              All Locations ({filteredLocations.length}{searchQuery && ` / ${locations?.length ?? 0}`})
+            </CardTitle>
+            <div className="relative w-72">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or counter ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
-          ) : locations && locations.length > 0 ? (
+          ) : filteredLocations.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -540,7 +562,7 @@ export default function CounterLocationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {locations.map((location) => (
+                {filteredLocations.map((location) => (
                   <LocationRow
                     key={location.location_id}
                     location={location}
@@ -553,7 +575,9 @@ export default function CounterLocationsPage() {
           ) : (
             <div className="text-center py-8">
               <LayoutGrid className="mx-auto h-12 w-12 text-muted-foreground" />
-              <p className="mt-2 text-muted-foreground">No locations found</p>
+              <p className="mt-2 text-muted-foreground">
+                {searchQuery ? `No locations matching "${searchQuery}"` : "No locations found"}
+              </p>
             </div>
           )}
         </CardContent>

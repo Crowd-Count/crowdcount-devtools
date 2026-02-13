@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
-import { SESSION_TIMEOUT_MS, setSessionExpiry, clearSessionExpiry } from "@/lib/session";
+import { setSessionExpiry, getSessionExpiry, clearSessionExpiry } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,36 +13,35 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [password, setPassword] = useState("");
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
 
   // Clear any persisted password on mount
   useEffect(() => {
     localStorage.removeItem("crowdcount_admin_password");
   }, []);
 
-  // Set up session timeout
+  // Set session expiry timestamp on login
   useEffect(() => {
     if (isAuthenticated) {
-      // Clear any existing timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      // Set new timeout
       setSessionExpiry();
-      timeoutRef.current = setTimeout(() => {
+    }
+  }, [isAuthenticated]);
+
+  // Poll for session expiry every second
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      const expiry = getSessionExpiry();
+      if (expiry && Date.now() >= expiry) {
         setIsAuthenticated(false);
         api.setAdminPassword("");
         clearSessionExpiry();
         toast.error("Session expired. Please log in again.");
-      }, SESSION_TIMEOUT_MS);
+      }
+    }, 1000);
 
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-      };
-    }
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   async function verifyPassword(pwd: string) {
