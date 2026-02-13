@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
+import { useAdmin } from "@/lib/admin-context";
 import { setSessionExpiry, getSessionExpiry, clearSessionExpiry } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +13,9 @@ import { toast } from "sonner";
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
+  const { setAdmin, clearAdmin } = useAdmin();
 
   // Clear any persisted password on mount
   useEffect(() => {
@@ -35,35 +37,38 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const expiry = getSessionExpiry();
       if (expiry && Date.now() >= expiry) {
         setIsAuthenticated(false);
-        api.setAdminPassword("");
+        api.setAdminCredentials("", "");
+        clearAdmin();
         clearSessionExpiry();
         toast.error("Session expired. Please log in again.");
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
-
-  async function verifyPassword(pwd: string) {
-    setIsLoading(true);
-    try {
-      const valid = await api.checkAdminPassword(pwd);
-      if (valid) {
-        api.setAdminPassword(pwd);
-        setIsAuthenticated(true);
-        toast.success("Logged in successfully");
-      } else {
-        toast.error("Invalid admin password");
-      }
-    } catch (error) {
-      toast.error("Failed to connect to API");
-    }
-    setIsLoading(false);
-  }
+  }, [isAuthenticated, clearAdmin]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await verifyPassword(password);
+    if (!username) {
+      toast.error("Username is required");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await api.checkAdminLogin(username, password);
+      if (result.valid) {
+        api.setAdminCredentials(username, password);
+        const perms = result.permissions || "all";
+        setAdmin(username, perms);
+        setIsAuthenticated(true);
+        toast.success(`Logged in as ${username}`);
+      } else {
+        toast.error("Invalid credentials");
+      }
+    } catch {
+      toast.error("Failed to connect to API");
+    }
+    setIsLoading(false);
   }
 
   if (!isAuthenticated) {
@@ -73,21 +78,34 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <CardHeader>
             <CardTitle>CrowdCount DevTools</CardTitle>
             <CardDescription>
-              Enter your admin password to access the developer panel.
+              Enter your credentials to access the developer panel.
               Session expires after 30 minutes.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="password">Admin Password</Label>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  disabled={isLoading}
+                  autoComplete="username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter admin password"
+                  placeholder="Enter password"
                   disabled={isLoading}
+                  autoComplete="current-password"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>

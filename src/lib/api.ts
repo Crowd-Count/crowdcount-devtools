@@ -35,6 +35,7 @@ interface SignedRequestOptions extends Omit<RequestInit, "headers"> {
 
 class CrowdCountAPI {
   private adminPassword: string = "";
+  private adminUsername: string = "";
 
   setAdminPassword(password: string) {
     this.adminPassword = password;
@@ -42,6 +43,15 @@ class CrowdCountAPI {
 
   getAdminPassword(): string {
     return this.adminPassword;
+  }
+
+  setAdminCredentials(username: string, password: string) {
+    this.adminUsername = username;
+    this.adminPassword = password;
+  }
+
+  getAdminUsername(): string {
+    return this.adminUsername;
   }
 
   private async fetch<T>(endpoint: string, options?: SignedRequestOptions): Promise<T> {
@@ -88,10 +98,14 @@ class CrowdCountAPI {
 
   // Authenticated POST request with password in body (not URL)
   private async authFetch<T>(endpoint: string, body: Record<string, unknown> = {}, idempotent: boolean = false): Promise<T> {
-    const bodyStr = JSON.stringify({
+    const authBody: Record<string, unknown> = {
       ...body,
       password: this.adminPassword,
-    });
+    };
+    if (this.adminUsername) {
+      authBody.admin_username = this.adminUsername;
+    }
+    const bodyStr = JSON.stringify(authBody);
     return this.fetch(endpoint, {
       method: "POST",
       body: bodyStr,
@@ -125,6 +139,35 @@ class CrowdCountAPI {
       return result.is_password_correct;
     } catch {
       return false;
+    }
+  }
+
+  async checkAdminLogin(
+    username: string,
+    password: string
+  ): Promise<{
+    valid: boolean;
+    permissions?: Record<string, number>;
+  }> {
+    try {
+      const result = await this.fetch<{
+        is_password_correct: boolean;
+        username?: string;
+        permissions?: Record<string, number>;
+      }>("/check_admin_password", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        sign: true,
+      });
+      if (result.is_password_correct) {
+        return {
+          valid: true,
+          permissions: result.permissions,
+        };
+      }
+      return { valid: false };
+    } catch {
+      return { valid: false };
     }
   }
 
@@ -190,6 +233,23 @@ class CrowdCountAPI {
     return deviceIds.map((id) => ({ device_id: id, password: "" }));
   }
 
+  private buildAdminAuth(): Record<string, string> {
+    const auth: Record<string, string> = { admin_password: this.adminPassword };
+    if (this.adminUsername) {
+      auth.admin_username = this.adminUsername;
+    }
+    return auth;
+  }
+
+  // Returns { password, admin_username? } for direct fetch calls
+  private buildPasswordAuth(): Record<string, string> {
+    const auth: Record<string, string> = { password: this.adminPassword };
+    if (this.adminUsername) {
+      auth.admin_username = this.adminUsername;
+    }
+    return auth;
+  }
+
   async getAllMapLocations(): Promise<Location[]> {
     const result = await this.fetch<{ locations: Location[] }>("/get_all_map_locations");
     return result.locations || [];
@@ -226,7 +286,7 @@ class CrowdCountAPI {
     deviceLabels?: Record<string, string>,
   ): Promise<{ message: string; location_id: string }> {
     const body: Record<string, unknown> = {
-      admin_password: this.adminPassword,
+      ...this.buildAdminAuth(),
       credentials: this.buildCredentials(deviceIds),
       name,
       on_map: true,
@@ -257,7 +317,7 @@ class CrowdCountAPI {
     overcrowdingLimit?: number,
   ): Promise<{ message: string; location_id: string }> {
     const body: Record<string, unknown> = {
-      admin_password: this.adminPassword,
+      ...this.buildAdminAuth(),
       credentials: this.buildCredentials(deviceIds),
       name,
       on_map: false,
@@ -284,7 +344,7 @@ class CrowdCountAPI {
     return this.fetch("/update_location", {
       method: "POST",
       body: JSON.stringify({
-        admin_password: this.adminPassword,
+        ...this.buildAdminAuth(),
         credentials: this.buildCredentials(deviceIds),
         location_id: locationId,
         ...updates,
@@ -301,7 +361,7 @@ class CrowdCountAPI {
     metadataOverrides?: Record<string, unknown>,
   ): Promise<{ message: string; location_id: string }> {
     const body: Record<string, unknown> = {
-      admin_password: this.adminPassword,
+      ...this.buildAdminAuth(),
       credentials: this.buildCredentials(deviceIds),
       location_id: locationId,
     };
@@ -333,7 +393,7 @@ class CrowdCountAPI {
     label?: string,
   ): Promise<{ message: string }> {
     const body: Record<string, unknown> = {
-      admin_password: this.adminPassword,
+      ...this.buildAdminAuth(),
       credentials: this.buildCredentials(existingDeviceIds),
       location_id: locationId,
       new_device_id: newDeviceId,
@@ -358,7 +418,7 @@ class CrowdCountAPI {
     return this.fetch("/remove_device_from_location", {
       method: "POST",
       body: JSON.stringify({
-        admin_password: this.adminPassword,
+        ...this.buildAdminAuth(),
         credentials: this.buildCredentials(existingDeviceIds),
         location_id: locationId,
         target_device_id: targetDeviceId,
@@ -399,7 +459,7 @@ class CrowdCountAPI {
   async sendAlert(alert: Omit<Alert, "alert_id">): Promise<{ status: string; alert_id: string }> {
     return this.fetch("/send_alert", {
       method: "POST",
-      body: JSON.stringify({ ...alert, password: this.adminPassword }),
+      body: JSON.stringify({ ...alert, ...this.buildPasswordAuth() }),
       sign: true,
       idempotent: true,
     });
@@ -408,7 +468,7 @@ class CrowdCountAPI {
   async expireAlert(alertId: string): Promise<{ message: string }> {
     return this.fetch("/expire_alert", {
       method: "POST",
-      body: JSON.stringify({ alert_id: alertId, password: this.adminPassword }),
+      body: JSON.stringify({ alert_id: alertId, ...this.buildPasswordAuth() }),
       sign: true,
       idempotent: true,
     });
@@ -428,7 +488,7 @@ class CrowdCountAPI {
   async resolveReport(reportId: string): Promise<{ message: string }> {
     return this.fetch("/resolve_report", {
       method: "POST",
-      body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
+      body: JSON.stringify({ report_id: reportId, ...this.buildPasswordAuth() }),
       sign: true,
       idempotent: true,
     });
@@ -437,7 +497,7 @@ class CrowdCountAPI {
   async deleteReport(reportId: string): Promise<{ message: string }> {
     return this.fetch("/delete_report", {
       method: "POST",
-      body: JSON.stringify({ report_id: reportId, password: this.adminPassword }),
+      body: JSON.stringify({ report_id: reportId, ...this.buildPasswordAuth() }),
       sign: true,
       idempotent: true,
     });
@@ -503,7 +563,7 @@ class CrowdCountAPI {
     return this.fetch("/approve-ad", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         ad_id: adId,
       }),
       sign: true,
@@ -515,7 +575,7 @@ class CrowdCountAPI {
     return this.fetch("/reject-ad", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         ad_id: adId,
         reason,
       }),
@@ -528,7 +588,7 @@ class CrowdCountAPI {
     return this.fetch("/delete-ad", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         ad_id: adId,
       }),
       sign: true,
@@ -545,7 +605,7 @@ class CrowdCountAPI {
     return this.fetch("/expire-ads", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
       }),
       sign: true,
       idempotent: true,
@@ -556,7 +616,7 @@ class CrowdCountAPI {
     return this.fetch("/cleanup-ads", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         days_old: daysOld,
       }),
       sign: true,
@@ -584,7 +644,7 @@ class CrowdCountAPI {
     return this.fetch("/create-admin-ad", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         ...data,
       }),
       sign: true,
@@ -602,7 +662,7 @@ class CrowdCountAPI {
     return this.fetch("/login-texts/pool", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         text,
       }),
       sign: true,
@@ -614,7 +674,7 @@ class CrowdCountAPI {
     return this.fetch(`/login-texts/pool/${textId}`, {
       method: "PUT",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         text,
       }),
       sign: true,
@@ -630,7 +690,7 @@ class CrowdCountAPI {
     return this.fetch(`/login-texts/pool/${textId}/toggle`, {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         active,
       }),
       sign: true,
@@ -647,7 +707,7 @@ class CrowdCountAPI {
     return this.fetch("/login-texts/override", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         date,
         text,
       }),
@@ -686,7 +746,7 @@ class CrowdCountAPI {
     return this.fetch("/set-promotion-pricing", {
       method: "POST",
       body: JSON.stringify({
-        password: this.adminPassword,
+        ...this.buildPasswordAuth(),
         price_per_hour: pricePerHour,
         currency,
       }),

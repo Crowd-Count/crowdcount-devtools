@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAdmin } from "@/lib/admin-context";
 import { getSessionExpiry } from "@/lib/session";
 import {
   LayoutDashboard,
@@ -22,15 +23,15 @@ import {
 import { getApiEnv, API_ENVIRONMENTS } from "@/lib/api";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Alerts", href: "/alerts", icon: Bell },
-  { name: "Map Locations", href: "/locations", icon: MapPin },
-  { name: "Counter Locations", href: "/counter-locations", icon: LayoutGrid },
-  { name: "Devices", href: "/devices", icon: Cpu },
-  { name: "Reports", href: "/reports", icon: MessageSquare },
-  { name: "Ads", href: "/ads", icon: Megaphone },
-  { name: "Login Texts", href: "/login-texts", icon: Type },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, permission: null },
+  { name: "Alerts", href: "/alerts", icon: Bell, permission: "alerts" },
+  { name: "Map Locations", href: "/locations", icon: MapPin, permission: "locations" },
+  { name: "Counter Locations", href: "/counter-locations", icon: LayoutGrid, permission: "locations" },
+  { name: "Devices", href: "/devices", icon: Cpu, permission: "devices" },
+  { name: "Reports", href: "/reports", icon: MessageSquare, permission: "reports" },
+  { name: "Ads", href: "/ads", icon: Megaphone, permission: "ads" },
+  { name: "Login Texts", href: "/login-texts", icon: Type, permission: "login_texts" },
+  { name: "Settings", href: "/settings", icon: Settings, permission: null },
 ];
 
 function useSessionTimer() {
@@ -62,6 +63,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const timer = useSessionTimer();
+  const { username, hasPermission } = useAdmin();
+
+  const visibleNavigation = navigation.filter(
+    (item) => item.permission === null || hasPermission(item.permission)
+  );
 
   return (
     <div
@@ -93,7 +99,7 @@ export function Sidebar() {
         </button>
       </div>
       <nav className={cn("flex-1 space-y-1 p-4", collapsed && "px-2")}>
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
@@ -128,9 +134,16 @@ export function Sidebar() {
           </div>
         )}
         {!collapsed && (
-          <p className="text-xs text-muted-foreground">
-            API: {API_ENVIRONMENTS[getApiEnv()]}
-          </p>
+          <div className="space-y-1">
+            {username && (
+              <p className="text-xs text-muted-foreground">
+                Admin: {username}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              API: {API_ENVIRONMENTS[getApiEnv()]}
+            </p>
+          </div>
         )}
       </div>
     </div>

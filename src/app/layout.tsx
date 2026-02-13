@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
+import { AdminProvider } from "@/lib/admin-context";
 import { Sidebar } from "@/components/sidebar";
 import { AuthGate } from "@/components/auth-gate";
 
@@ -29,14 +30,16 @@ export default function RootLayout({
         className={`${geistMono.variable} antialiased`}
       >
         <Providers>
-          <AuthGate>
-            <div className="flex h-screen">
-              <Sidebar />
-              <main className="flex-1 overflow-auto bg-background p-8">
-                {children}
-              </main>
-            </div>
-          </AuthGate>
+          <AdminProvider>
+            <AuthGate>
+              <div className="flex h-screen">
+                <Sidebar />
+                <main className="flex-1 overflow-auto bg-background p-8">
+                  {children}
+                </main>
+              </div>
+            </AuthGate>
+          </AdminProvider>
         </Providers>
       </body>
     </html>
