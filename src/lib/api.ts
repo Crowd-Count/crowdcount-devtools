@@ -15,7 +15,7 @@ function loadApiEnv(): ApiEnv {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "production" || stored === "staging") return stored;
   }
-  return "staging"; // default
+  return "production"; // default
 }
 
 export function getApiEnv(): ApiEnv {
