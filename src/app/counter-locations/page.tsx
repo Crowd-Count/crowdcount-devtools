@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,14 +26,12 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
@@ -102,6 +100,7 @@ function LocationRow({
   onDelete: (location: EnrichedLocation) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [eraseDialogOpen, setEraseDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const adjustMutation = useMutation({
@@ -221,18 +220,16 @@ function LocationRow({
             >
               <Edit2 className="h-4 w-4" />
             </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => e.stopPropagation()}
-                  disabled={eraseMutation.isPending}
-                >
-                  <RotateCcw className={`h-4 w-4 ${eraseMutation.isPending ? "animate-spin" : ""}`} />
-                </Button>
-              </AlertDialogTrigger>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={(e) => { e.stopPropagation(); setEraseDialogOpen(true); }}
+              disabled={eraseMutation.isPending}
+            >
+              <RotateCcw className={`h-4 w-4 ${eraseMutation.isPending ? "animate-spin" : ""}`} />
+            </Button>
+            <AlertDialog open={eraseDialogOpen} onOpenChange={setEraseDialogOpen}>
               <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Erase All Data?</AlertDialogTitle>
@@ -242,12 +239,15 @@ function LocationRow({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    className={buttonVariants({ variant: "destructive" })}
-                    onClick={() => eraseMutation.mutate()}
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      setEraseDialogOpen(false);
+                      eraseMutation.mutate();
+                    }}
                   >
                     Erase Data
-                  </AlertDialogAction>
+                  </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
