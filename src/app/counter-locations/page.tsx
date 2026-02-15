@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,18 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, X, Search } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
 
 interface CounterEntry {
@@ -101,6 +112,17 @@ function LocationRow({
     },
     onError: (error: Error) => {
       toast.error(error.message);
+    },
+  });
+
+  const eraseMutation = useMutation({
+    mutationFn: () => api.resetLocationAllData(location.location_id),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success(`Erased data for "${location.location_name || "Location"}" (${data.devices_reset} device${data.devices_reset !== 1 ? "s" : ""} reset)`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erase failed: ${error.message}`);
     },
   });
 
@@ -199,6 +221,36 @@ function LocationRow({
             >
               <Edit2 className="h-4 w-4" />
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={eraseMutation.isPending}
+                >
+                  <RotateCcw className={`h-4 w-4 ${eraseMutation.isPending ? "animate-spin" : ""}`} />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Erase All Data?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will reset all counter and history data for <strong>{location.location_name || "this location"}</strong> and its {location.devices.length} device{location.devices.length !== 1 ? "s" : ""}. Current counts will be set to 0. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className={buttonVariants({ variant: "destructive" })}
+                    onClick={() => eraseMutation.mutate()}
+                  >
+                    Erase Data
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             {!location.is_auto && (
               <Button
                 variant="ghost"

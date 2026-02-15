@@ -730,6 +730,11 @@ class CrowdCountAPI {
     return result.texts || [];
   }
 
+  // Data Reset
+  async resetLocationAllData(locationId: string): Promise<{ success: boolean; devices_reset: number }> {
+    return this.authFetch("/admin/reset_location_all_data", { location_id: locationId }, true);
+  }
+
   // Device Versions
   async getDeviceVersions(): Promise<{
     versions: Record<string, { commit_hash: string; updated_at: number }>;
