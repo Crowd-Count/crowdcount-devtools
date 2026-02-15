@@ -55,7 +55,18 @@ function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string
     },
   });
 
-  const isPending = addMutation.isPending;
+  const subMutation = useMutation({
+    mutationFn: (delta: number) => api.subFromDeviceCount(deviceId, delta),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success(`${deviceId}: count → ${data.new_count}`);
+    },
+    onError: (error: Error) => {
+      toast.error(`${deviceId}: ${error.message}`);
+    },
+  });
+
+  const isPending = addMutation.isPending || subMutation.isPending;
 
   return (
     <div className="flex items-center gap-3 py-1.5 px-2 rounded-md hover:bg-muted/50">
@@ -71,7 +82,7 @@ function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string
           variant="outline"
           size="icon"
           className="h-7 w-7"
-          onClick={() => addMutation.mutate(-1)}
+          onClick={() => subMutation.mutate(1)}
           disabled={isPending}
         >
           <Minus className="h-3 w-3" />

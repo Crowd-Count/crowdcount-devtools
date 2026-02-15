@@ -267,6 +267,13 @@ class CrowdCountAPI {
     }, true);
   }
 
+  async subFromDeviceCount(deviceId: string, delta: number): Promise<{ message: string; new_count: number }> {
+    return this.authFetch("/admin/sub_from_count", {
+      device_id: deviceId,
+      count_to_sub: delta,
+    }, true);
+  }
+
   async adjustLocationCount(locationId: string, delta: number): Promise<{ message: string; new_count: number }> {
     return this.authFetch("/admin/location/adjust_count", {
       location_id: locationId,
