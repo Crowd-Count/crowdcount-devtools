@@ -116,9 +116,9 @@ function LocationRow({
 
   const eraseMutation = useMutation({
     mutationFn: () => api.resetLocationAllData(location.location_id),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
-      toast.success(`Erased data for "${location.location_name || "Location"}" (${data.devices_reset} device${data.devices_reset !== 1 ? "s" : ""} reset)`);
+      toast.success(`Erased location data for "${location.location_name || "Location"}"`);
     },
     onError: (error: Error) => {
       toast.error(`Erase failed: ${error.message}`);
@@ -234,7 +234,7 @@ function LocationRow({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Erase All Data?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will reset all counter and history data for <strong>{location.location_name || "this location"}</strong> and its {location.devices.length} device{location.devices.length !== 1 ? "s" : ""}. Current counts will be set to 0. This cannot be undone.
+                    This will erase all location-level history data for <strong>{location.location_name || "this location"}</strong>. Individual counter data will not be affected. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

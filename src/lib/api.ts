@@ -731,7 +731,7 @@ class CrowdCountAPI {
   }
 
   // Data Reset
-  async resetLocationAllData(locationId: string): Promise<{ success: boolean; devices_reset: number }> {
+  async resetLocationAllData(locationId: string): Promise<{ success: boolean }> {
     return this.authFetch("/admin/reset_location_all_data", { location_id: locationId }, true);
   }
 
