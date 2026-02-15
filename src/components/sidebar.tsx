@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/lib/admin-context";
-import { getSessionExpiry } from "@/lib/session";
+import { getSessionExpiry, extendSession } from "@/lib/session";
 import {
   LayoutDashboard,
   Bell,
@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  TimerReset,
 } from "lucide-react";
 import { getApiEnv, API_ENVIRONMENTS } from "@/lib/api";
 
@@ -131,6 +132,13 @@ export function Sidebar() {
           >
             <Clock className="h-3 w-3 flex-shrink-0" />
             {!collapsed && <span>{timer.formatted}</span>}
+            <button
+              onClick={extendSession}
+              className="ml-auto p-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors"
+              title="Extend session 30 min"
+            >
+              <TimerReset className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
         {!collapsed && (

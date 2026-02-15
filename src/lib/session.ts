@@ -10,6 +10,10 @@ export function getSessionExpiry(): number | null {
   return sessionExpiresAt;
 }
 
+export function extendSession() {
+  sessionExpiresAt = Date.now() + SESSION_TIMEOUT_MS;
+}
+
 export function clearSessionExpiry() {
   sessionExpiresAt = null;
 }
