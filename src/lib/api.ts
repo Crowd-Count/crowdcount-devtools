@@ -504,10 +504,15 @@ class CrowdCountAPI {
   }
 
   // Overcrowding
-  async getOvercrowding(deviceId: string): Promise<number | null> {
+  async getOvercrowding(deviceId: string, password: string): Promise<number | null> {
     try {
       const result = await this.fetch<{ overcrowding: number | string }>(
-        `/get_overcrowding?device_name=${deviceId}`
+        "/get_overcrowding",
+        {
+          method: "POST",
+          body: JSON.stringify({ device_name: deviceId, password }),
+          sign: true,
+        }
       );
       if (result.overcrowding === "N/A") return null;
       return Number(result.overcrowding);
