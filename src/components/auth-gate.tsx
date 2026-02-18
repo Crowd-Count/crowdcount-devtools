@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { api, getApiEnv, setApiEnv, API_ENVIRONMENTS, type ApiEnv } from "@/lib/api";
 import { useAdmin } from "@/lib/admin-context";
 import { setSessionExpiry, getSessionExpiry, clearSessionExpiry } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { WifiOff, RefreshCw } from "lucide-react";
+import { WifiOff, RefreshCw, Server } from "lucide-react";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -121,11 +121,36 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               </CardDescription>
             </CardHeader>
             {serverStatus === "offline" && (
-              <CardContent className="flex justify-center">
-                <Button onClick={handleRetry} disabled={isRetrying} variant="outline">
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? "animate-spin" : ""}`} />
-                  {isRetrying ? "Retrying..." : "Retry"}
-                </Button>
+              <CardContent className="space-y-4">
+                <div className="flex justify-center">
+                  <Button onClick={handleRetry} disabled={isRetrying} variant="outline">
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? "animate-spin" : ""}`} />
+                    {isRetrying ? "Retrying..." : "Retry"}
+                  </Button>
+                </div>
+                <div className="pt-4 border-t">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Server className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">API Environment</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {(Object.keys(API_ENVIRONMENTS) as ApiEnv[]).map((env) => (
+                      <Button
+                        key={env}
+                        variant={getApiEnv() === env ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          if (env !== getApiEnv()) {
+                            setApiEnv(env);
+                          }
+                        }}
+                        className="flex-1 capitalize text-xs"
+                      >
+                        {env}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             )}
           </Card>
@@ -173,6 +198,29 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 {isLoading ? "Verifying..." : "Login"}
               </Button>
             </form>
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center gap-2 mb-2">
+                <Server className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">API Environment</span>
+              </div>
+              <div className="flex gap-2">
+                {(Object.keys(API_ENVIRONMENTS) as ApiEnv[]).map((env) => (
+                  <Button
+                    key={env}
+                    variant={getApiEnv() === env ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      if (env !== getApiEnv()) {
+                        setApiEnv(env);
+                      }
+                    }}
+                    className="flex-1 capitalize text-xs"
+                  >
+                    {env}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
