@@ -9,13 +9,43 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { WifiOff, RefreshCw } from "lucide-react";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [serverStatus, setServerStatus] = useState<"checking" | "online" | "offline">("checking");
+  const [isRetrying, setIsRetrying] = useState(false);
   const { setAdmin, clearAdmin } = useAdmin();
+
+  // Check server connectivity on mount
+  useEffect(() => {
+    checkServer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function checkServer() {
+    setServerStatus("checking");
+    try {
+      await api.ping();
+      setServerStatus("online");
+    } catch {
+      setServerStatus("offline");
+    }
+  }
+
+  async function handleRetry() {
+    setIsRetrying(true);
+    try {
+      await api.ping();
+      setServerStatus("online");
+    } catch {
+      setServerStatus("offline");
+    }
+    setIsRetrying(false);
+  }
 
   // Clear any persisted password on mount
   useEffect(() => {
@@ -72,6 +102,37 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
+    // Server offline or checking
+    if (serverStatus !== "online") {
+      return (
+        <div className="flex h-screen items-center justify-center bg-background">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="flex justify-center mb-2">
+                <WifiOff className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <CardTitle>
+                {serverStatus === "checking" ? "Connecting..." : "Can't Connect to Server"}
+              </CardTitle>
+              <CardDescription>
+                {serverStatus === "checking"
+                  ? "Checking server availability..."
+                  : "The CrowdCount API server is unreachable. This could be due to a network issue or server maintenance."}
+              </CardDescription>
+            </CardHeader>
+            {serverStatus === "offline" && (
+              <CardContent className="flex justify-center">
+                <Button onClick={handleRetry} disabled={isRetrying} variant="outline">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRetrying ? "animate-spin" : ""}`} />
+                  {isRetrying ? "Retrying..." : "Retry"}
+                </Button>
+              </CardContent>
+            )}
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Card className="w-full max-w-md">
