@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search, Clock } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
 
 interface CounterEntry {
@@ -112,6 +119,12 @@ function LocationRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [eraseDialogOpen, setEraseDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetHour, setResetHour] = useState("0");
+  const [resetMinute, setResetMinute] = useState("0");
+  const [resetTimezone, setResetTimezone] = useState(
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
   const queryClient = useQueryClient();
 
   const adjustMutation = useMutation({
@@ -135,6 +148,57 @@ function LocationRow({
       toast.error(`Erase failed: ${error.message}`);
     },
   });
+
+  const deviceIds = location.devices.map((d) => d[0]);
+
+  const { data: schedule, isLoading: scheduleLoading } = useQuery({
+    queryKey: ["resetSchedule", location.location_id],
+    queryFn: () => api.getResetSchedule(location.location_id, deviceIds),
+    enabled: resetDialogOpen,
+  });
+
+  const setScheduleMutation = useMutation({
+    mutationFn: () =>
+      api.setResetSchedule(
+        location.location_id,
+        deviceIds,
+        Number(resetHour),
+        Number(resetMinute),
+        resetTimezone
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["resetSchedule", location.location_id] });
+      toast.success("Reset schedule saved");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to set schedule: ${error.message}`);
+    },
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: () => api.deleteResetSchedule(location.location_id, deviceIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["resetSchedule", location.location_id] });
+      toast.success("Reset schedule removed");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete schedule: ${error.message}`);
+    },
+  });
+
+  // Sync form fields when schedule data loads
+  const syncedRef = useRef(false);
+  useEffect(() => {
+    if (resetDialogOpen && schedule && !syncedRef.current) {
+      syncedRef.current = true;
+      setResetHour(String(schedule.reset_hour));
+      setResetMinute(String(schedule.reset_minute));
+      setResetTimezone(schedule.timezone);
+    }
+    if (!resetDialogOpen) {
+      syncedRef.current = false;
+    }
+  }, [resetDialogOpen, schedule]);
 
   return (
     <>
@@ -262,6 +326,92 @@ function LocationRow({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setResetDialogOpen(true); }}
+            >
+              <Clock className="h-4 w-4" />
+            </Button>
+            <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Daily Reset Schedule</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  {scheduleLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading schedule...</p>
+                  ) : (
+                    <>
+                      {schedule && schedule.last_reset_date && (
+                        <p className="text-xs text-muted-foreground">
+                          Last reset: {schedule.last_reset_date}
+                        </p>
+                      )}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Hour (0-23)</Label>
+                          <Select value={resetHour} onValueChange={setResetHour}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 24 }, (_, i) => (
+                                <SelectItem key={i} value={String(i)}>
+                                  {String(i).padStart(2, "0")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Minute (0-59)</Label>
+                          <Select value={resetMinute} onValueChange={setResetMinute}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 60 }, (_, i) => (
+                                <SelectItem key={i} value={String(i)}>
+                                  {String(i).padStart(2, "0")}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Timezone</Label>
+                        <Input
+                          value={resetTimezone}
+                          onChange={(e) => setResetTimezone(e.target.value)}
+                          placeholder="e.g., America/New_York"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1"
+                          onClick={() => setScheduleMutation.mutate()}
+                          disabled={setScheduleMutation.isPending || !resetTimezone.trim()}
+                        >
+                          {setScheduleMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        {schedule && (
+                          <Button
+                            variant="destructive"
+                            onClick={() => deleteScheduleMutation.mutate()}
+                            disabled={deleteScheduleMutation.isPending}
+                          >
+                            {deleteScheduleMutation.isPending ? "Removing..." : "Remove Schedule"}
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
             {!location.is_auto && (
               <Button
                 variant="ghost"

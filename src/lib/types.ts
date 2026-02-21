@@ -131,3 +131,14 @@ export interface DailyLoginText {
   is_override: boolean;
   selected_at: string | null;
 }
+
+export interface ResetSchedule {
+  id: string;
+  location_id: string;
+  reset_hour: number;
+  reset_minute: number;
+  timezone: string;
+  last_reset_date: string | null;
+  created_at: string;
+  updated_at: string;
+}

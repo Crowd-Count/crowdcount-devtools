@@ -1,4 +1,4 @@
-import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText } from "./types";
+import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
 export const API_ENVIRONMENTS = {
@@ -766,6 +766,50 @@ class CrowdCountAPI {
         ...this.buildPasswordAuth(),
         price_per_hour: pricePerHour,
         currency,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  // Reset Schedules
+  async getResetSchedule(locationId: string, deviceIds: string[]): Promise<ResetSchedule | null> {
+    const result = await this.fetch<ResetSchedule | { schedule: null }>("/get_reset_schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+      }),
+      sign: true,
+    });
+    if ("schedule" in result && result.schedule === null) return null;
+    return result as ResetSchedule;
+  }
+
+  async setResetSchedule(locationId: string, deviceIds: string[], resetHour: number, resetMinute: number, timezone: string): Promise<ResetSchedule> {
+    return this.fetch("/set_reset_schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+        reset_hour: resetHour,
+        reset_minute: resetMinute,
+        timezone,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  async deleteResetSchedule(locationId: string, deviceIds: string[]): Promise<{ message: string }> {
+    return this.fetch("/delete_reset_schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
       }),
       sign: true,
       idempotent: true,
