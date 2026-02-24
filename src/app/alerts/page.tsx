@@ -179,7 +179,7 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Alerts</h2>
           <p className="text-muted-foreground">
@@ -376,63 +376,65 @@ export default function AlertsPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : alerts && alerts.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Targeting</TableHead>
-                  <TableHead>Expires</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {alerts.map((alert) => {
-                  const targeting = getTargetingLabel(alert);
-                  return (
-                    <TableRow key={alert.alert_id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{alert.title}</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[300px]">
-                            {alert.body}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{alert.alert_type}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={targeting.variant}>{targeting.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {safeFormatDate(alert.expires)}
-                      </TableCell>
-                      <TableCell>
-                        {isExpired(alert.expires) ? (
-                          <Badge variant="outline">Expired</Badge>
-                        ) : (
-                          <Badge variant="default">Active</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!isExpired(alert.expires) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => expireMutation.mutate(alert.alert_id)}
-                            disabled={expireMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Targeting</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {alerts.map((alert) => {
+                    const targeting = getTargetingLabel(alert);
+                    return (
+                      <TableRow key={alert.alert_id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{alert.title}</p>
+                            <p className="text-sm text-muted-foreground truncate max-w-[300px]">
+                              {alert.body}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{alert.alert_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={targeting.variant}>{targeting.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {safeFormatDate(alert.expires)}
+                        </TableCell>
+                        <TableCell>
+                          {isExpired(alert.expires) ? (
+                            <Badge variant="outline">Expired</Badge>
+                          ) : (
+                            <Badge variant="default">Active</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {!isExpired(alert.expires) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => expireMutation.mutate(alert.alert_id)}
+                              disabled={expireMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground">No alerts found</p>
           )}

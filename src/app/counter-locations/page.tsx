@@ -649,7 +649,7 @@ export default function CounterLocationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Counter Locations</h2>
           <p className="text-muted-foreground">
@@ -783,7 +783,7 @@ export default function CounterLocationsPage() {
             <CardTitle>
               All Locations ({filteredLocations.length}{searchQuery && ` / ${locations?.length ?? 0}`})
             </CardTitle>
-            <div className="relative w-72">
+            <div className="relative w-full sm:w-72">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name or counter ID..."
@@ -798,29 +798,31 @@ export default function CounterLocationsPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : filteredLocations.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Location ID</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>On Map</TableHead>
-                  <TableHead>Devices</TableHead>
-                  <TableHead>Current Count</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLocations.map((location) => (
-                  <LocationRow
-                    key={location.location_id}
-                    location={location}
-                    onEdit={openEditDialog}
-                    onDelete={(loc) => deleteMutation.mutate(loc)}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Location ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>On Map</TableHead>
+                    <TableHead>Devices</TableHead>
+                    <TableHead>Current Count</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLocations.map((location) => (
+                    <LocationRow
+                      key={location.location_id}
+                      location={location}
+                      onEdit={openEditDialog}
+                      onDelete={(loc) => deleteMutation.mutate(loc)}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <LayoutGrid className="mx-auto h-12 w-12 text-muted-foreground" />

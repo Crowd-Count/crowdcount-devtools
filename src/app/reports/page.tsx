@@ -85,7 +85,7 @@ export default function ReportsPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Reports</CardTitle>
@@ -135,81 +135,83 @@ export default function ReportsPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : filteredReports && filteredReports.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Content</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[150px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredReports.map((report) => (
-                  <TableRow key={report.report_id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{report.user_name || "Anonymous"}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {report.user_email || "-"}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>From</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Content</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[150px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredReports.map((report) => (
+                    <TableRow key={report.report_id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{report.user_name || "Anonymous"}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {report.user_email || "-"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{report.location || "-"}</TableCell>
+                      <TableCell>
+                        <p className="truncate max-w-[200px]">
+                          {report.report_content}
                         </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{report.location || "-"}</TableCell>
-                    <TableCell>
-                      <p className="truncate max-w-[200px]">
-                        {report.report_content}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(report.date), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          report.report_status === "pending"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                      >
-                        {report.report_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedReport(report)}
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(report.date), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            report.report_status === "pending"
+                              ? "destructive"
+                              : "secondary"
+                          }
                         >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {report.report_status === "pending" && (
+                          {report.report_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => resolveMutation.mutate(report.report_id)}
-                            disabled={resolveMutation.isPending}
+                            onClick={() => setSelectedReport(report)}
                           >
-                            <Check className="h-4 w-4" />
+                            <Eye className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(report.report_id)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {report.report_status === "pending" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => resolveMutation.mutate(report.report_id)}
+                              disabled={resolveMutation.isPending}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMutation.mutate(report.report_id)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -226,7 +228,7 @@ export default function ReportsPage() {
           </DialogHeader>
           {selectedReport && (
             <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">From</p>
                   <p className="font-medium">{selectedReport.user_name || "Anonymous"}</p>

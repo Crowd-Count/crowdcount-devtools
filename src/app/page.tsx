@@ -119,7 +119,7 @@ export default function DashboardPage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div>
                     <div className="flex items-center justify-center gap-1">
                       <Clock className="h-4 w-4 text-orange-500" />

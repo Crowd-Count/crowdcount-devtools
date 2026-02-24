@@ -171,7 +171,7 @@ export default function DevicesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Devices</h2>
           <p className="text-muted-foreground">
@@ -341,7 +341,7 @@ export default function DevicesPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Devices</CardTitle>
@@ -408,78 +408,80 @@ export default function DevicesPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : filteredDevices && filteredDevices.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Device ID</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDevices.map((device) => (
-                  <TableRow key={device.user_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <code className="font-medium">{device.user_id}</code>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Device ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDevices.map((device) => (
+                    <TableRow key={device.user_id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <code className="font-medium">{device.user_id}</code>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => copyToClipboard(device.user_id || "")}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={device.status === "online" ? "default" : "secondary"}
+                          className={`cursor-pointer transition-colors ${
+                            device.status === "online"
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "hover:bg-muted-foreground/20"
+                          }`}
+                          onClick={() =>
+                            statusMutation.mutate({
+                              userId: device.user_id || "",
+                              status: device.status === "online" ? "offline" : "online",
+                            })
+                          }
+                          title={`Click to set ${device.status === "online" ? "offline" : "online"}`}
+                        >
+                          {device.status === "online" ? (
+                            <Wifi className="mr-1 h-3 w-3" />
+                          ) : (
+                            <WifiOff className="mr-1 h-3 w-3" />
+                          )}
+                          {device.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {device.is_updated ? (
+                          <Badge className="bg-green-500 hover:bg-green-600">Updated</Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-orange-400 text-orange-500" title={device.commit_hash || "No version reported"}>
+                            Not Updated
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6"
-                          onClick={() => copyToClipboard(device.user_id || "")}
+                          disabled
+                          title="Device deletion is temporarily disabled"
                         >
-                          <Copy className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4 text-muted-foreground/40" />
                         </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={device.status === "online" ? "default" : "secondary"}
-                        className={`cursor-pointer transition-colors ${
-                          device.status === "online"
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "hover:bg-muted-foreground/20"
-                        }`}
-                        onClick={() =>
-                          statusMutation.mutate({
-                            userId: device.user_id || "",
-                            status: device.status === "online" ? "offline" : "online",
-                          })
-                        }
-                        title={`Click to set ${device.status === "online" ? "offline" : "online"}`}
-                      >
-                        {device.status === "online" ? (
-                          <Wifi className="mr-1 h-3 w-3" />
-                        ) : (
-                          <WifiOff className="mr-1 h-3 w-3" />
-                        )}
-                        {device.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {device.is_updated ? (
-                        <Badge className="bg-green-500 hover:bg-green-600">Updated</Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-orange-400 text-orange-500" title={device.commit_hash || "No version reported"}>
-                          Not Updated
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled
-                        title="Device deletion is temporarily disabled"
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground/40" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <Cpu className="mx-auto h-12 w-12 text-muted-foreground" />

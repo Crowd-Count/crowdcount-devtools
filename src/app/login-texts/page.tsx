@@ -163,7 +163,7 @@ export default function LoginTextsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Login Texts</h2>
           <p className="text-muted-foreground">
@@ -287,57 +287,59 @@ export default function LoginTextsPage() {
           {isPoolLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : poolTexts && poolTexts.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Text</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-[150px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {poolTexts.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.text}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={item.active}
-                        onCheckedChange={(active) =>
-                          toggleMutation.mutate({ id: item.id, active })
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {safeFormatDate(item.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditId(item.id);
-                            setEditText(item.text);
-                            setIsEditOpen(true);
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(item.id)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Text</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[150px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {poolTexts.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.text}</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={item.active}
+                          onCheckedChange={(active) =>
+                            toggleMutation.mutate({ id: item.id, active })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {safeFormatDate(item.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditId(item.id);
+                              setEditText(item.text);
+                              setIsEditOpen(true);
+                            }}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMutation.mutate(item.id)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground">
               No texts in pool. Add some texts to get started.
@@ -354,45 +356,47 @@ export default function LoginTextsPage() {
         </CardHeader>
         <CardContent>
           {upcomingTexts && upcomingTexts.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Text</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {upcomingTexts.map((item) => (
-                  <TableRow key={item.date}>
-                    <TableCell>{formatShortDate(item.date)}</TableCell>
-                    <TableCell>{item.text || "(Not selected yet)"}</TableCell>
-                    <TableCell>
-                      {item.is_override ? (
-                        <Badge variant="secondary">Override</Badge>
-                      ) : item.text ? (
-                        <Badge variant="outline">Random</Badge>
-                      ) : (
-                        <Badge variant="outline">Pending</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {item.is_override && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => clearOverrideMutation.mutate(item.date)}
-                          disabled={clearOverrideMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Text</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {upcomingTexts.map((item) => (
+                    <TableRow key={item.date}>
+                      <TableCell>{formatShortDate(item.date)}</TableCell>
+                      <TableCell>{item.text || "(Not selected yet)"}</TableCell>
+                      <TableCell>
+                        {item.is_override ? (
+                          <Badge variant="secondary">Override</Badge>
+                        ) : item.text ? (
+                          <Badge variant="outline">Random</Badge>
+                        ) : (
+                          <Badge variant="outline">Pending</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.is_override && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => clearOverrideMutation.mutate(item.date)}
+                            disabled={clearOverrideMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground">No upcoming texts scheduled.</p>
           )}

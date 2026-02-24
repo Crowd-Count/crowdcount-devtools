@@ -248,7 +248,7 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Map Locations</h2>
           <p className="text-muted-foreground">
@@ -270,7 +270,7 @@ export default function LocationsPage() {
               <DialogTitle>{isEditing ? "Edit Location" : "Add New Location"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Location Name</Label>
                   <Input
@@ -376,7 +376,7 @@ export default function LocationsPage() {
                   </p>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Marker Color</Label>
                   <div className="flex gap-2 flex-wrap">
@@ -437,75 +437,77 @@ export default function LocationsPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : locations && locations.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Counters</TableHead>
-                  <TableHead>Current Count</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {locations.map((location) => (
-                  <TableRow key={location.location_id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getHexFromName(location.location_color || "blue") }}
-                        />
-                        <span className="font-medium">{location.location_name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{location.location_address || "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {location.devices.map((d) => (
-                          <Badge key={d[0]} variant="secondary" className="text-xs">
-                            {d[0]}{d[1] && d[1] !== "Counter" ? ` (${d[1]})` : ""}
-                          </Badge>
-                        ))}
-                        {location.devices.length === 0 && (
-                          <span className="text-muted-foreground text-sm">No devices</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{location.current_count}</span>
-                        {location.overcrowding_limit != null && (
-                          <span className="text-muted-foreground">
-                            / {location.overcrowding_limit}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(location)}
-                          disabled={editMutation.isPending}
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(location)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Counters</TableHead>
+                    <TableHead>Current Count</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {locations.map((location) => (
+                    <TableRow key={location.location_id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: getHexFromName(location.location_color || "blue") }}
+                          />
+                          <span className="font-medium">{location.location_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{location.location_address || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {location.devices.map((d) => (
+                            <Badge key={d[0]} variant="secondary" className="text-xs">
+                              {d[0]}{d[1] && d[1] !== "Counter" ? ` (${d[1]})` : ""}
+                            </Badge>
+                          ))}
+                          {location.devices.length === 0 && (
+                            <span className="text-muted-foreground text-sm">No devices</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span>{location.current_count}</span>
+                          {location.overcrowding_limit != null && (
+                            <span className="text-muted-foreground">
+                              / {location.overcrowding_limit}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(location)}
+                            disabled={editMutation.isPending}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMutation.mutate(location)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <MapPin className="mx-auto h-12 w-12 text-muted-foreground" />

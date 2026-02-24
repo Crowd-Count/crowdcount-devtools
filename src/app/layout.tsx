@@ -3,7 +3,7 @@ import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/lib/providers";
 import { AdminProvider } from "@/lib/admin-context";
-import { Sidebar } from "@/components/sidebar";
+import { Sidebar, MobileHeader } from "@/components/sidebar";
 import { AuthGate } from "@/components/auth-gate";
 
 const geistMono = Geist_Mono({
@@ -32,9 +32,10 @@ export default function RootLayout({
         <Providers>
           <AdminProvider>
             <AuthGate>
-              <div className="flex h-screen">
+              <div className="flex h-screen flex-col md:flex-row">
+                <MobileHeader />
                 <Sidebar />
-                <main className="flex-1 overflow-auto bg-background p-8">
+                <main className="flex-1 overflow-auto bg-background p-4 md:p-8">
                   {children}
                 </main>
               </div>

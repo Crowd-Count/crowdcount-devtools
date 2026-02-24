@@ -273,7 +273,7 @@ export default function AdsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Ads</h2>
           <p className="text-muted-foreground">
@@ -298,7 +298,7 @@ export default function AdsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Ads</CardTitle>
@@ -390,89 +390,91 @@ export default function AdsPage() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : filteredAds && filteredAds.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Clicks</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[150px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAds.map((ad) => (
-                  <TableRow key={ad.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{ad.title}</p>
-                        <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                          {ad.description}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <code className="text-sm">{ad.location_id}</code>
-                    </TableCell>
-                    <TableCell>{ad.duration_hours}h</TableCell>
-                    <TableCell>${ad.total_price.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <span className="text-blue-600 font-medium">{ad.click_count || 0}</span>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(ad.submitted_at), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(ad.status)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedAd(ad)}
-                          title="View details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {ad.status === "pending_review" && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => approveMutation.mutate(ad.id)}
-                              disabled={approveMutation.isPending}
-                              title="Approve"
-                            >
-                              <Check className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openRejectDialog(ad)}
-                              disabled={rejectMutation.isPending}
-                              title="Reject"
-                            >
-                              <X className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(ad.id)}
-                          disabled={deleteMutation.isPending}
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Clicks</TableHead>
+                    <TableHead>Submitted</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[150px]">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredAds.map((ad) => (
+                    <TableRow key={ad.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{ad.title}</p>
+                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                            {ad.description}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-sm">{ad.location_id}</code>
+                      </TableCell>
+                      <TableCell>{ad.duration_hours}h</TableCell>
+                      <TableCell>${ad.total_price.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <span className="text-blue-600 font-medium">{ad.click_count || 0}</span>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(ad.submitted_at), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(ad.status)}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedAd(ad)}
+                            title="View details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {ad.status === "pending_review" && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => approveMutation.mutate(ad.id)}
+                                disabled={approveMutation.isPending}
+                                title="Approve"
+                              >
+                                <Check className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openRejectDialog(ad)}
+                                disabled={rejectMutation.isPending}
+                                title="Reject"
+                              >
+                                <X className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMutation.mutate(ad.id)}
+                            disabled={deleteMutation.isPending}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-8">
               <Megaphone className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -508,7 +510,7 @@ export default function AdsPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Title</p>
                   <p className="font-medium">{selectedAd.title}</p>
@@ -519,7 +521,7 @@ export default function AdsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Location</p>
-                  <code className="font-medium">{selectedAd.location_id}</code>
+                  <code className="font-medium break-all">{selectedAd.location_id}</code>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Duration</p>
