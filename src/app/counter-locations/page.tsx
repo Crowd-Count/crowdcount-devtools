@@ -40,8 +40,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search, Clock } from "lucide-react";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search, Clock, BarChart3, Lightbulb } from "lucide-react";
 import type { EnrichedLocation } from "@/lib/types";
+import { LocationHistoryDialog } from "@/components/location-history-dialog";
+import { LocationInsightsDialog } from "@/components/location-insights-dialog";
 
 interface CounterEntry {
   id: string;
@@ -120,6 +122,8 @@ function LocationRow({
   const [expanded, setExpanded] = useState(false);
   const [eraseDialogOpen, setEraseDialogOpen] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(false);
   const [resetHour, setResetHour] = useState("0");
   const [resetMinute, setResetMinute] = useState("0");
   const [resetTimezone, setResetTimezone] = useState(
@@ -330,6 +334,24 @@ function LocationRow({
               variant="ghost"
               size="icon"
               className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setHistoryOpen(true); }}
+              title="History"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setInsightsOpen(true); }}
+              title="Insights"
+            >
+              <Lightbulb className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
               onClick={(e) => { e.stopPropagation(); setResetDialogOpen(true); }}
             >
               <Clock className="h-4 w-4" />
@@ -412,6 +434,20 @@ function LocationRow({
                 </div>
               </DialogContent>
             </Dialog>
+            <LocationHistoryDialog
+              open={historyOpen}
+              onOpenChange={setHistoryOpen}
+              locationId={location.location_id}
+              locationName={location.location_name || "Unnamed"}
+              deviceIds={deviceIds}
+            />
+            <LocationInsightsDialog
+              open={insightsOpen}
+              onOpenChange={setInsightsOpen}
+              locationId={location.location_id}
+              locationName={location.location_name || "Unnamed"}
+              deviceIds={deviceIds}
+            />
             {!location.is_auto && (
               <Button
                 variant="ghost"

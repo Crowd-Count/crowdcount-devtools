@@ -815,6 +815,115 @@ class CrowdCountAPI {
       idempotent: true,
     });
   }
+
+  // Location History & Insights
+  async getLocationAvailableDates(locationId: string, deviceIds: string[]): Promise<string[]> {
+    const result = await this.fetch<{ dates: string[] }>("/get_location_available_dates", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+      }),
+      sign: true,
+    });
+    return result.dates;
+  }
+
+  async getLocationInsightsBundle(
+    locationId: string,
+    deviceIds: string[],
+    params: { date: string; date2?: string | null; week_date: string; year: number }
+  ): Promise<InsightsBundleResponse> {
+    const body: Record<string, unknown> = {
+      ...this.buildAdminAuth(),
+      credentials: this.buildCredentials(deviceIds),
+      location_id: locationId,
+      date: params.date,
+      week_date: params.week_date,
+      year: params.year,
+      tz_offset_minutes: new Date().getTimezoneOffset() * -1,
+    };
+    if (params.date2) body.date2 = params.date2;
+    return this.fetch("/get_location_insights_bundle", {
+      method: "POST",
+      body: JSON.stringify(body),
+      sign: true,
+    });
+  }
+
+  async getLocationHistoryBundle(
+    locationId: string,
+    deviceIds: string[],
+    params: { date: string; date2?: string | null; week_date: string; year: number; data_type: "count" | "entries" }
+  ): Promise<HistoryBundleResponse> {
+    const body: Record<string, unknown> = {
+      ...this.buildAdminAuth(),
+      credentials: this.buildCredentials(deviceIds),
+      location_id: locationId,
+      date: params.date,
+      week_date: params.week_date,
+      year: params.year,
+      data_type: params.data_type,
+      tz_offset_minutes: new Date().getTimezoneOffset() * -1,
+    };
+    if (params.date2) body.date2 = params.date2;
+    return this.fetch("/get_location_history_bundle", {
+      method: "POST",
+      body: JSON.stringify(body),
+      sign: true,
+    });
+  }
+
+  async getLocationDayDataDetailed(
+    locationId: string,
+    deviceIds: string[],
+    params: { date: string; data_type: "count" | "entries" }
+  ): Promise<{ data: Record<string, number>; average: Record<string, number> }> {
+    return this.fetch("/get_location_day_data_detailed", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+        date: params.date,
+        data_type: params.data_type,
+        tz_offset_minutes: new Date().getTimezoneOffset() * -1,
+      }),
+      sign: true,
+    });
+  }
+}
+
+export interface InsightsBundleResponse {
+  day_view: Record<string, number>;
+  average_day_view: Record<string, number>;
+  entry_day_view: Record<string, number>;
+  average_entry_day_view: Record<string, number>;
+  day_view_2?: Record<string, number>;
+  average_day_view_2?: Record<string, number>;
+  entry_day_view_2?: Record<string, number>;
+  average_entry_day_view_2?: Record<string, number>;
+  week_view: Record<string, number>;
+  average_week_view: Record<string, number>;
+  entry_week_view: Record<string, number>;
+  average_entry_week_view: Record<string, number>;
+  year_view: Record<string, number>;
+  average_year_view: Record<string, number> | null;
+  entry_year_view: Record<string, number>;
+  average_entry_year_view: Record<string, number> | null;
+  dwell_time_view?: number | Record<string, never>;
+}
+
+export interface HistoryBundleResponse {
+  day_view: Record<string, number>;
+  average_day_view: Record<string, number>;
+  day_view_2?: Record<string, number>;
+  average_day_view_2?: Record<string, number>;
+  week_view: Record<string, number>;
+  average_week_view: Record<string, number>;
+  year_view: Record<string, number>;
+  average_year_view: Record<string, number> | null;
 }
 
 export const api = new CrowdCountAPI();
