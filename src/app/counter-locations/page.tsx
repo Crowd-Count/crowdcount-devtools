@@ -33,6 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -121,6 +122,9 @@ function LocationRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [eraseDialogOpen, setEraseDialogOpen] = useState(false);
+  const [eraseAllConfirmOpen, setEraseAllConfirmOpen] = useState(false);
+  const [eraseStartDate, setEraseStartDate] = useState("");
+  const [eraseEndDate, setEraseEndDate] = useState("");
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(false);
@@ -146,7 +150,21 @@ function LocationRow({
     mutationFn: () => api.resetLocationAllData(location.location_id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
-      toast.success(`Erased location data for "${location.location_name || "Location"}"`);
+      toast.success(`Erased all data for "${location.location_name || "Location"}"`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erase failed: ${error.message}`);
+    },
+  });
+
+  const eraseDateRangeMutation = useMutation({
+    mutationFn: () => api.resetLocationDateRange(location.location_id, eraseStartDate, eraseEndDate),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success(`Erased ${data.rows_deleted} rows from ${eraseStartDate} to ${eraseEndDate}`);
+      setEraseDialogOpen(false);
+      setEraseStartDate("");
+      setEraseEndDate("");
     },
     onError: (error: Error) => {
       toast.error(`Erase failed: ${error.message}`);
@@ -304,16 +322,75 @@ function LocationRow({
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={(e) => { e.stopPropagation(); setEraseDialogOpen(true); }}
-              disabled={eraseMutation.isPending}
+              disabled={eraseMutation.isPending || eraseDateRangeMutation.isPending}
             >
-              <RotateCcw className={`h-4 w-4 ${eraseMutation.isPending ? "animate-spin" : ""}`} />
+              <RotateCcw className={`h-4 w-4 ${eraseMutation.isPending || eraseDateRangeMutation.isPending ? "animate-spin" : ""}`} />
             </Button>
-            <AlertDialog open={eraseDialogOpen} onOpenChange={setEraseDialogOpen}>
+            <Dialog open={eraseDialogOpen} onOpenChange={(open) => {
+              setEraseDialogOpen(open);
+              if (!open) { setEraseStartDate(""); setEraseEndDate(""); }
+            }}>
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Erase Data — {location.location_name || "Unnamed"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Erase location history for a specific date range.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Start Date</Label>
+                        <Input
+                          type="date"
+                          value={eraseStartDate}
+                          onChange={(e) => setEraseStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">End Date</Label>
+                        <Input
+                          type="date"
+                          value={eraseEndDate}
+                          onChange={(e) => setEraseEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      disabled={!eraseStartDate || !eraseEndDate || eraseStartDate > eraseEndDate || eraseDateRangeMutation.isPending}
+                      onClick={() => eraseDateRangeMutation.mutate()}
+                    >
+                      {eraseDateRangeMutation.isPending ? "Erasing..." : "Erase Date Range"}
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Or erase <strong>all</strong> history data for this location. This cannot be undone.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      disabled={eraseMutation.isPending}
+                      onClick={() => setEraseAllConfirmOpen(true)}
+                    >
+                      {eraseMutation.isPending ? "Erasing..." : "Erase All Data"}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <AlertDialog open={eraseAllConfirmOpen} onOpenChange={setEraseAllConfirmOpen}>
               <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Erase All Data?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will erase all location-level history data for <strong>{location.location_name || "this location"}</strong>. Individual counter data will not be affected. This cannot be undone.
+                    This will permanently erase <strong>all</strong> location-level history data for <strong>{location.location_name || "this location"}</strong>. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -321,11 +398,12 @@ function LocationRow({
                   <Button
                     variant="destructive"
                     onClick={() => {
+                      setEraseAllConfirmOpen(false);
                       setEraseDialogOpen(false);
                       eraseMutation.mutate();
                     }}
                   >
-                    Erase Data
+                    Erase All Data
                   </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>

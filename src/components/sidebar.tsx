@@ -21,6 +21,7 @@ import {
   MessageSquare,
   Megaphone,
   Type,
+  Activity,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -39,6 +40,7 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: MessageSquare, permission: "reports" },
   { name: "Ads", href: "/ads", icon: Megaphone, permission: "ads" },
   { name: "Login Texts", href: "/login-texts", icon: Type, permission: "login_texts" },
+  { name: "Status", href: "/status", icon: Activity, permission: null },
   { name: "Settings", href: "/settings", icon: Settings, permission: null },
 ];
 

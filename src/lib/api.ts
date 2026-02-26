@@ -171,6 +171,11 @@ class CrowdCountAPI {
     }
   }
 
+  // Status History
+  async getStatusHistory(hours: number = 24): Promise<StatusHistoryResponse> {
+    return this.fetch(`/status_history?hours=${hours}`);
+  }
+
   // Dashboard Stats
   async getActiveCount(): Promise<number> {
     const result = await this.authFetch<{ active_count: number }>("/active_count");
@@ -742,6 +747,14 @@ class CrowdCountAPI {
     return this.authFetch("/admin/reset_location_all_data", { location_id: locationId }, true);
   }
 
+  async resetLocationDateRange(locationId: string, startDate: string, endDate: string): Promise<{ success: boolean; rows_deleted: number }> {
+    return this.authFetch("/admin/reset_location_date_range", {
+      location_id: locationId,
+      start_date: startDate,
+      end_date: endDate,
+    }, true);
+  }
+
   // Device Versions
   async getDeviceVersions(): Promise<{
     versions: Record<string, { commit_hash: string; updated_at: number }>;
@@ -924,6 +937,18 @@ export interface HistoryBundleResponse {
   average_week_view: Record<string, number>;
   year_view: Record<string, number>;
   average_year_view: Record<string, number> | null;
+}
+
+export interface StatusCheck {
+  timestamp: string;
+  status: "up" | "down";
+  latency_ms: number;
+  checked_url: string;
+}
+
+export interface StatusHistoryResponse {
+  checks: StatusCheck[];
+  uptime_percent: number | null;
 }
 
 export const api = new CrowdCountAPI();
