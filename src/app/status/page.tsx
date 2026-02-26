@@ -38,7 +38,7 @@ function timeAgo(iso: string): string {
 }
 
 function UptimeBar({ checks }: { checks: StatusCheck[] }) {
-  const visible = checks.slice(-100);
+  const visible = checks;
   if (visible.length === 0) {
     return <div className="text-xs text-muted-foreground">No data</div>;
   }
@@ -48,7 +48,7 @@ function UptimeBar({ checks }: { checks: StatusCheck[] }) {
       {visible.map((check, i) => (
         <div
           key={`${check.timestamp}-${i}`}
-          className={`flex-1 min-w-[3px] max-w-[6px] rounded-sm ${
+          className={`flex-1 min-w-[2px] rounded-sm ${
             check.status === "up" ? "bg-green-500" : "bg-red-500"
           }`}
           style={{ height: "100%" }}
