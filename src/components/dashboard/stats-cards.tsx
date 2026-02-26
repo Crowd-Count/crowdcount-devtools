@@ -157,7 +157,7 @@ export function StatsCards() {
       icon: Activity,
       description: uptime24h !== null ? `24h uptime: ${uptime24h}%` : "Server response time",
       badge: pingResult ? "Online" : undefined,
-      badgeVariant: (uptime24h !== null && uptime24h < 99 ? "destructive" : "default") as "default" | "destructive",
+      badgeVariant: "default" as const,
     },
   ];
 
