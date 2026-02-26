@@ -62,6 +62,18 @@ export function StatsCards() {
     queryFn: () => api.pingWithLatency(),
   });
 
+  const { data: statusHistory } = useQuery({
+    queryKey: ["statusHistory", "24"],
+    queryFn: () => api.getStatusHistory(24),
+  });
+
+  const uptime24h = (() => {
+    const checks = statusHistory?.checks;
+    if (!checks?.length) return null;
+    const up = checks.filter((c) => c.status === "up").length;
+    return Math.round((up / checks.length) * 10000) / 100;
+  })();
+
   const { data: versionData } = useQuery({
     queryKey: ["deviceVersions"],
     queryFn: () => api.getDeviceVersions(),
@@ -143,9 +155,9 @@ export function StatsCards() {
       title: "API Status",
       value: pingResult ? `${pingResult.latencyMs}ms` : "-",
       icon: Activity,
-      description: "Server response time",
+      description: uptime24h !== null ? `24h uptime: ${uptime24h}%` : "Server response time",
       badge: pingResult ? "Online" : undefined,
-      badgeVariant: "default" as const,
+      badgeVariant: (uptime24h !== null && uptime24h < 99 ? "destructive" : "default") as "default" | "destructive",
     },
   ];
 

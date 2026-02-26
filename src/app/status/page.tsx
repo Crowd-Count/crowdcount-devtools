@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { StatusCheck } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -38,21 +38,20 @@ function timeAgo(iso: string): string {
 }
 
 function UptimeBar({ checks }: { checks: StatusCheck[] }) {
-  // Show most recent 100 checks as small bars
   const visible = checks.slice(-100);
   if (visible.length === 0) {
-    return <div className="text-sm text-muted-foreground">No data</div>;
+    return <div className="text-xs text-muted-foreground">No data</div>;
   }
 
   return (
-    <div className="flex gap-px items-end h-8">
+    <div className="flex gap-px items-end h-6">
       {visible.map((check, i) => (
         <div
           key={`${check.timestamp}-${i}`}
           className={`flex-1 min-w-[3px] max-w-[6px] rounded-sm ${
             check.status === "up" ? "bg-green-500" : "bg-red-500"
           }`}
-          style={{ height: check.status === "up" ? "100%" : "100%" }}
+          style={{ height: "100%" }}
           title={`${formatTimestamp(check.timestamp)} — ${check.status.toUpperCase()} (${check.latency_ms}ms)`}
         />
       ))}
@@ -66,14 +65,13 @@ export default function StatusPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["statusHistory", hours],
     queryFn: () => api.getStatusHistory(Number(hours)),
-    refetchInterval: 60000, // refresh every minute
+    refetchInterval: 60000,
   });
 
   const checks = data?.checks ?? [];
   const latestCheck = checks.length > 0 ? checks[checks.length - 1] : null;
   const isUp = latestCheck?.status === "up";
 
-  // Calculate uptime for different periods
   const uptimeStats = useMemo(() => {
     if (!checks.length) return { h24: null, d7: null, d30: null };
 
@@ -94,11 +92,11 @@ export default function StatusPage() {
   }, [checks, data?.uptime_percent]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Status</h1>
+        <h1 className="text-lg font-semibold">Status</h1>
         <Select value={hours} onValueChange={setHours}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[140px] h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -111,141 +109,130 @@ export default function StatusPage() {
         </Select>
       </div>
 
-      {/* Current Status */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Status</CardTitle>
+      {/* Status + Uptime row */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <Card className="p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Status</span>
             {isUp ? (
-              <Wifi className="h-4 w-4 text-green-500" />
+              <Wifi className="h-3.5 w-3.5 text-green-500" />
             ) : (
-              <WifiOff className="h-4 w-4 text-red-500" />
+              <WifiOff className="h-3.5 w-3.5 text-red-500" />
             )}
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-2xl font-bold text-muted-foreground">...</div>
-            ) : latestCheck ? (
-              <>
-                <div className={`text-2xl font-bold ${isUp ? "text-green-500" : "text-red-500"}`}>
-                  {isUp ? "Operational" : "Down"}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {latestCheck.latency_ms}ms — {timeAgo(latestCheck.timestamp)}
-                </p>
-              </>
-            ) : (
-              <div className="text-2xl font-bold text-muted-foreground">No data</div>
-            )}
-          </CardContent>
+          </div>
+          {isLoading ? (
+            <div className="text-lg font-semibold text-muted-foreground">...</div>
+          ) : latestCheck ? (
+            <>
+              <div className={`text-lg font-semibold ${isUp ? "text-green-500" : "text-red-500"}`}>
+                {isUp ? "Operational" : "Down"}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {latestCheck.latency_ms}ms - {timeAgo(latestCheck.timestamp)}
+              </p>
+            </>
+          ) : (
+            <div className="text-lg font-semibold text-muted-foreground">No data</div>
+          )}
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uptime (24h)</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {uptimeStats.h24 !== null ? `${uptimeStats.h24}%` : "—"}
-            </div>
-          </CardContent>
+        <Card className="p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">24h</span>
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="text-lg font-semibold">
+            {uptimeStats.h24 !== null ? `${uptimeStats.h24}%` : "—"}
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uptime (7d)</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {uptimeStats.d7 !== null ? `${uptimeStats.d7}%` : "—"}
-            </div>
-          </CardContent>
+        <Card className="p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">7d</span>
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="text-lg font-semibold">
+            {uptimeStats.d7 !== null ? `${uptimeStats.d7}%` : "—"}
+          </div>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Uptime (30d)</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {uptimeStats.d30 !== null ? `${uptimeStats.d30}%` : "—"}
-            </div>
-          </CardContent>
+        <Card className="p-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">30d</span>
+            <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div className="text-lg font-semibold">
+            {uptimeStats.d30 !== null ? `${uptimeStats.d30}%` : "—"}
+          </div>
         </Card>
       </div>
 
-      {/* Timeline Bar */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">Uptime Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="h-8 bg-muted animate-pulse rounded" />
-          ) : (
-            <>
-              <UptimeBar checks={checks} />
-              <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                <span>{checks.length > 0 ? formatTimestamp(checks[0].timestamp) : ""}</span>
-                <span>{checks.length > 0 ? formatTimestamp(checks[checks.length - 1].timestamp) : ""}</span>
-              </div>
-            </>
-          )}
-        </CardContent>
+      {/* Timeline */}
+      <Card className="p-3">
+        <p className="text-xs text-muted-foreground mb-2">Timeline</p>
+        {isLoading ? (
+          <div className="h-6 bg-muted animate-pulse rounded" />
+        ) : (
+          <>
+            <UptimeBar checks={checks} />
+            <div className="flex justify-between mt-1 text-[11px] text-muted-foreground">
+              <span>{checks.length > 0 ? formatTimestamp(checks[0].timestamp) : ""}</span>
+              <span>{checks.length > 0 ? formatTimestamp(checks[checks.length - 1].timestamp) : ""}</span>
+            </div>
+          </>
+        )}
       </Card>
 
-      {/* Recent Checks Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium">
-            Recent Checks ({checks.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">Loading...</div>
-          ) : checks.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              No status checks recorded yet. The status checker runs every 5 minutes.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Latency</TableHead>
-                  <TableHead>Source</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {[...checks]
-                  .reverse()
-                  .slice(0, 50)
-                  .map((check, i) => (
-                    <TableRow key={`${check.timestamp}-${i}`}>
-                      <TableCell className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+      {/* Recent Checks */}
+      <Card className="p-3">
+        <p className="text-xs text-muted-foreground mb-2">
+          Recent Checks ({checks.length})
+        </p>
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-4 text-sm">Loading...</div>
+        ) : checks.length === 0 ? (
+          <div className="text-center text-muted-foreground py-4 text-sm">
+            No checks yet. The status checker runs every 5 minutes.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs h-8">Time</TableHead>
+                <TableHead className="text-xs h-8">Status</TableHead>
+                <TableHead className="text-xs h-8">Latency</TableHead>
+                <TableHead className="text-xs h-8">Source</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...checks]
+                .reverse()
+                .slice(0, 50)
+                .map((check, i) => (
+                  <TableRow key={`${check.timestamp}-${i}`}>
+                    <TableCell className="py-1.5 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
                         {formatTimestamp(check.timestamp)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={check.status === "up" ? "default" : "destructive"}>
-                          {check.status.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{check.latency_ms}ms</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {check.checked_url}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-1.5">
+                      <Badge
+                        variant={check.status === "up" ? "default" : "destructive"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {check.status.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-1.5 text-xs">{check.latency_ms}ms</TableCell>
+                    <TableCell className="py-1.5 text-muted-foreground text-[11px]">
+                      {check.checked_url}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
     </div>
   );
