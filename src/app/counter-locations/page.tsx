@@ -41,7 +41,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search, Clock, BarChart3, Lightbulb } from "lucide-react";
+import { Plus, Minus, ChevronDown, ChevronRight, LayoutGrid, Copy, Edit2, Trash2, RotateCcw, X, Search, Clock, BarChart3, Lightbulb, Moon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import type { EnrichedLocation } from "@/lib/types";
 import { LocationHistoryDialog } from "@/components/location-history-dialog";
 import { LocationInsightsDialog } from "@/components/location-insights-dialog";
@@ -49,6 +50,33 @@ import { LocationInsightsDialog } from "@/components/location-insights-dialog";
 interface CounterEntry {
   id: string;
   label: string;
+}
+
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+interface ClosingDayState {
+  enabled: boolean;
+  closeHour: string;
+  closeMinute: string;
+  openHour: string;
+  openMinute: string;
+}
+
+const DEFAULT_CLOSING_DAY: ClosingDayState = {
+  enabled: false,
+  closeHour: "22",
+  closeMinute: "0",
+  openHour: "6",
+  openMinute: "0",
+};
+
+function padTime(h: string, m: string): string {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function parseTime(time: string): [string, string] {
+  const [h, m] = time.split(":");
+  return [String(Number(h)), String(Number(m))];
 }
 
 function DeviceRow({ deviceId, label, count }: { deviceId: string; label: string; count: number }) {
@@ -131,6 +159,13 @@ function LocationRow({
   const [resetHour, setResetHour] = useState("0");
   const [resetMinute, setResetMinute] = useState("0");
   const [resetTimezone, setResetTimezone] = useState(
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+  const [closingTimeOpen, setClosingTimeOpen] = useState(false);
+  const [closingDays, setClosingDays] = useState<ClosingDayState[]>(
+    Array.from({ length: 7 }, () => ({ ...DEFAULT_CLOSING_DAY }))
+  );
+  const [closingTimezone, setClosingTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone
   );
   const queryClient = useQueryClient();
@@ -222,6 +257,74 @@ function LocationRow({
     }
   }, [resetDialogOpen, schedule]);
 
+  // ── Closing time schedule ──
+  const { data: closingTime, isLoading: closingTimeLoading } = useQuery({
+    queryKey: ["closingTime", location.location_id],
+    queryFn: () => api.getClosingTime(location.location_id, deviceIds),
+    enabled: closingTimeOpen,
+  });
+
+  const setClosingTimeMutation = useMutation({
+    mutationFn: () => {
+      const days = closingDays
+        .map((d, i) => d.enabled ? {
+          day_of_week: i,
+          close_hour: Number(d.closeHour),
+          close_minute: Number(d.closeMinute),
+          open_hour: Number(d.openHour),
+          open_minute: Number(d.openMinute),
+        } : null)
+        .filter((d): d is NonNullable<typeof d> => d !== null);
+      return api.setClosingTime(location.location_id, deviceIds, closingTimezone, days);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["closingTime", location.location_id] });
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success("Closing time schedule saved");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to set closing time: ${error.message}`);
+    },
+  });
+
+  const deleteClosingTimeMutation = useMutation({
+    mutationFn: () => api.deleteClosingTime(location.location_id, deviceIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["closingTime", location.location_id] });
+      queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
+      toast.success("Closing time schedule removed");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete closing time: ${error.message}`);
+    },
+  });
+
+  const closingSyncedRef = useRef(false);
+  useEffect(() => {
+    if (closingTimeOpen && closingTime && !closingSyncedRef.current) {
+      closingSyncedRef.current = true;
+      const newDays = Array.from({ length: 7 }, () => ({ ...DEFAULT_CLOSING_DAY }));
+      for (const day of closingTime.days) {
+        newDays[day.day_of_week] = {
+          enabled: true,
+          closeHour: String(day.close_hour),
+          closeMinute: String(day.close_minute),
+          openHour: String(day.open_hour),
+          openMinute: String(day.open_minute),
+        };
+      }
+      setClosingDays(newDays);
+      setClosingTimezone(closingTime.timezone);
+    }
+    if (!closingTimeOpen) {
+      closingSyncedRef.current = false;
+    }
+  }, [closingTimeOpen, closingTime]);
+
+  function updateClosingDay(index: number, updates: Partial<ClosingDayState>) {
+    setClosingDays(prev => prev.map((d, i) => i === index ? { ...d, ...updates } : d));
+  }
+
   return (
     <>
       <TableRow
@@ -242,6 +345,11 @@ function LocationRow({
             <span className="font-medium">
               {location.location_name || "Unnamed"}
             </span>
+            {location.is_closed && (
+              <Badge variant="outline" className="text-xs text-orange-500 border-orange-500/30 bg-orange-500/10">
+                closed
+              </Badge>
+            )}
           </div>
         </TableCell>
         <TableCell>
@@ -504,6 +612,100 @@ function LocationRow({
                             disabled={deleteScheduleMutation.isPending}
                           >
                             {deleteScheduleMutation.isPending ? "Removing..." : "Remove Schedule"}
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => { e.stopPropagation(); setClosingTimeOpen(true); }}
+              title="Closing Time"
+            >
+              <Moon className="h-4 w-4" />
+            </Button>
+            <Dialog open={closingTimeOpen} onOpenChange={setClosingTimeOpen}>
+              <DialogContent className="max-w-md" onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Closing Time Schedule</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  {closingTimeLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading schedule...</p>
+                  ) : (
+                    <>
+                      {closingTime && (closingTime.last_close_date || closingTime.last_open_date) && (
+                        <div className="text-xs text-muted-foreground space-y-0.5">
+                          {closingTime.last_close_date && <p>Last closed: {closingTime.last_close_date}</p>}
+                          {closingTime.last_open_date && <p>Last opened: {closingTime.last_open_date}</p>}
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {DAY_NAMES.map((dayName, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <Switch
+                              checked={closingDays[i].enabled}
+                              onCheckedChange={(checked) => updateClosingDay(i, { enabled: checked })}
+                            />
+                            <span className="text-sm font-medium w-8">{dayName}</span>
+                            {closingDays[i].enabled ? (
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  type="time"
+                                  className="h-7 w-[110px] text-xs"
+                                  value={padTime(closingDays[i].closeHour, closingDays[i].closeMinute)}
+                                  onChange={(e) => {
+                                    const [h, m] = parseTime(e.target.value);
+                                    updateClosingDay(i, { closeHour: h, closeMinute: m });
+                                  }}
+                                  step={60}
+                                />
+                                <span className="text-muted-foreground text-xs">→</span>
+                                <Input
+                                  type="time"
+                                  className="h-7 w-[110px] text-xs"
+                                  value={padTime(closingDays[i].openHour, closingDays[i].openMinute)}
+                                  onChange={(e) => {
+                                    const [h, m] = parseTime(e.target.value);
+                                    updateClosingDay(i, { openHour: h, openMinute: m });
+                                  }}
+                                  step={60}
+                                />
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Off</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Timezone</Label>
+                        <Input
+                          value={closingTimezone}
+                          onChange={(e) => setClosingTimezone(e.target.value)}
+                          placeholder="e.g., America/New_York"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          className="flex-1"
+                          onClick={() => setClosingTimeMutation.mutate()}
+                          disabled={setClosingTimeMutation.isPending || !closingTimezone.trim() || !closingDays.some(d => d.enabled)}
+                        >
+                          {setClosingTimeMutation.isPending ? "Saving..." : "Save"}
+                        </Button>
+                        {closingTime && (
+                          <Button
+                            variant="destructive"
+                            onClick={() => deleteClosingTimeMutation.mutate()}
+                            disabled={deleteClosingTimeMutation.isPending}
+                          >
+                            {deleteClosingTimeMutation.isPending ? "Removing..." : "Remove"}
                           </Button>
                         )}
                       </div>

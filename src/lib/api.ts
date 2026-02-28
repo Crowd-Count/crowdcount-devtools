@@ -1,4 +1,4 @@
-import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule } from "./types";
+import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule, ClosingTimeDay, ClosingTimeSchedule } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
 export const API_ENVIRONMENTS = {
@@ -818,6 +818,49 @@ class CrowdCountAPI {
 
   async deleteResetSchedule(locationId: string, deviceIds: string[]): Promise<{ message: string }> {
     return this.fetch("/delete_reset_schedule", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  // Closing Time Schedules
+  async getClosingTime(locationId: string, deviceIds: string[]): Promise<ClosingTimeSchedule | null> {
+    const result = await this.fetch<ClosingTimeSchedule | { closing_time: null }>("/get_closing_time", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+      }),
+      sign: true,
+    });
+    if ("closing_time" in result && result.closing_time === null) return null;
+    return result as ClosingTimeSchedule;
+  }
+
+  async setClosingTime(locationId: string, deviceIds: string[], timezone: string, days: ClosingTimeDay[]): Promise<ClosingTimeSchedule> {
+    return this.fetch("/set_closing_time", {
+      method: "POST",
+      body: JSON.stringify({
+        ...this.buildAdminAuth(),
+        credentials: this.buildCredentials(deviceIds),
+        location_id: locationId,
+        timezone,
+        days,
+      }),
+      sign: true,
+      idempotent: true,
+    });
+  }
+
+  async deleteClosingTime(locationId: string, deviceIds: string[]): Promise<{ message: string }> {
+    return this.fetch("/delete_closing_time", {
       method: "POST",
       body: JSON.stringify({
         ...this.buildAdminAuth(),

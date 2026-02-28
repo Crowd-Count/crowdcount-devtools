@@ -29,6 +29,7 @@ export interface Location {
   devices: LocationDevice[];  // [[device_id, label], ...]
   created_at: string;
   updated_at: string;
+  is_closed?: boolean;
 }
 
 export interface EnrichedLocation extends Omit<Location, "devices"> {
@@ -141,4 +142,23 @@ export interface ResetSchedule {
   last_reset_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ClosingTimeDay {
+  day_of_week: number;
+  close_hour: number;
+  close_minute: number;
+  open_hour: number;
+  open_minute: number;
+}
+
+export interface ClosingTimeSchedule {
+  id: string;
+  location_id: string;
+  timezone: string;
+  last_close_date: string | null;
+  last_open_date: string | null;
+  created_at: string;
+  updated_at: string;
+  days: ClosingTimeDay[];
 }
