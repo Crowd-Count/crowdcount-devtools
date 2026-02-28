@@ -54,6 +54,9 @@ interface CounterEntry {
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const ALL_TIMEZONES = Intl.supportedValuesOf("timeZone");
+const LOCAL_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 interface ClosingDayState {
   enabled: boolean;
   closeHour: string;
@@ -685,11 +688,18 @@ function LocationRow({
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Timezone</Label>
-                        <Input
-                          value={closingTimezone}
-                          onChange={(e) => setClosingTimezone(e.target.value)}
-                          placeholder="e.g., America/New_York"
-                        />
+                        <Select value={closingTimezone} onValueChange={setClosingTimezone}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60">
+                            {ALL_TIMEZONES.map((tz) => (
+                              <SelectItem key={tz} value={tz}>
+                                {tz.replace(/_/g, " ")}{tz === LOCAL_TIMEZONE ? " (local)" : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="flex gap-2">
                         <Button
