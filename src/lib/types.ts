@@ -152,6 +152,14 @@ export interface ClosingTimeDay {
   open_minute: number;
 }
 
+export interface AdminAccount {
+  username: string;
+  permissions: Record<string, number>;
+  created_at?: number;
+  updated_at?: number;
+  source: "database" | "env_var";
+}
+
 export interface ClosingTimeSchedule {
   id: string;
   location_id: string;

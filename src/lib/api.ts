@@ -1,4 +1,4 @@
-import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule, ClosingTimeDay, ClosingTimeSchedule } from "./types";
+import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule, ClosingTimeDay, ClosingTimeSchedule, AdminAccount } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
 export const API_ENVIRONMENTS = {
@@ -948,6 +948,40 @@ class CrowdCountAPI {
       }),
       sign: true,
     });
+  }
+
+  // Admin Accounts
+  async listAdminAccounts(): Promise<AdminAccount[]> {
+    const result = await this.authFetch<{ accounts: AdminAccount[] }>("/admin/accounts/list");
+    return result.accounts || [];
+  }
+
+  async createAdminAccount(
+    newUsername: string,
+    newPassword: string,
+    permissions: Record<string, number>,
+  ): Promise<{ message: string; account: AdminAccount }> {
+    return this.authFetch("/admin/accounts/create", {
+      new_username: newUsername,
+      new_password: newPassword,
+      permissions,
+    }, true);
+  }
+
+  async updateAdminAccount(
+    targetUsername: string,
+    updates: { permissions?: Record<string, number>; new_password?: string },
+  ): Promise<{ message: string; account: AdminAccount }> {
+    return this.authFetch("/admin/accounts/update", {
+      target_username: targetUsername,
+      ...updates,
+    }, true);
+  }
+
+  async deleteAdminAccount(targetUsername: string): Promise<{ message: string }> {
+    return this.authFetch("/admin/accounts/delete", {
+      target_username: targetUsername,
+    }, true);
   }
 }
 

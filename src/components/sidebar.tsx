@@ -28,10 +28,17 @@ import {
   Clock,
   TimerReset,
   Menu,
+  Users,
 } from "lucide-react";
 import { getApiEnv, API_ENVIRONMENTS } from "@/lib/api";
 
-const navigation = [
+const navigation: {
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  permission: string | null;
+  rootOnly?: boolean;
+}[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard, permission: null },
   { name: "Alerts", href: "/alerts", icon: Bell, permission: "alerts" },
   { name: "Map Locations", href: "/locations", icon: MapPin, permission: "locations" },
@@ -40,6 +47,7 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: MessageSquare, permission: "reports" },
   { name: "Ads", href: "/ads", icon: Megaphone, permission: "ads" },
   { name: "Login Texts", href: "/login-texts", icon: Type, permission: "login_texts" },
+  { name: "Admin Users", href: "/admin-users", icon: Users, permission: null, rootOnly: true },
   { name: "Status", href: "/status", icon: Activity, permission: null },
   { name: "Settings", href: "/settings", icon: Settings, permission: null },
 ];
@@ -112,11 +120,12 @@ export function MobileHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const timer = useSessionTimer();
-  const { username, hasPermission } = useAdmin();
+  const { username, hasPermission, isRootAdmin } = useAdmin();
 
-  const visibleNavigation = navigation.filter(
-    (item) => item.permission === null || hasPermission(item.permission)
-  );
+  const visibleNavigation = navigation.filter((item) => {
+    if (item.rootOnly && !isRootAdmin) return false;
+    return item.permission === null || hasPermission(item.permission);
+  });
 
   // Close sheet on navigation
   useEffect(() => {
@@ -184,11 +193,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const timer = useSessionTimer();
-  const { username, hasPermission } = useAdmin();
+  const { username, hasPermission, isRootAdmin } = useAdmin();
 
-  const visibleNavigation = navigation.filter(
-    (item) => item.permission === null || hasPermission(item.permission)
-  );
+  const visibleNavigation = navigation.filter((item) => {
+    if (item.rootOnly && !isRootAdmin) return false;
+    return item.permission === null || hasPermission(item.permission);
+  });
 
   return (
     <div

@@ -7,6 +7,7 @@ export type AdminPermissions = Record<string, number>;
 export interface AdminContextType {
   username: string;
   permissions: AdminPermissions | "all"; // "all" for superadmin
+  isRootAdmin: boolean;
   hasPermission: (perm: string) => boolean;
   setAdmin: (username: string, permissions: AdminPermissions | "all") => void;
   clearAdmin: () => void;
@@ -39,9 +40,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     setPermissions("all");
   }, []);
 
+  const isRootAdmin = username === "root_admin";
+
   return (
     <AdminContext.Provider
-      value={{ username, permissions, hasPermission, setAdmin, clearAdmin }}
+      value={{ username, permissions, isRootAdmin, hasPermission, setAdmin, clearAdmin }}
     >
       {children}
     </AdminContext.Provider>
