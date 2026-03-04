@@ -157,10 +157,13 @@ export default function AlertsPage() {
     },
   });
 
+  const parseUTCDate = (dateStr: string) =>
+    new Date(dateStr.replace(" ", "T") + "Z");
+
   const isExpired = (expiresStr: string | undefined) => {
     if (!expiresStr) return false;
     try {
-      return new Date(expiresStr) < new Date();
+      return parseUTCDate(expiresStr) < new Date();
     } catch {
       return false;
     }
@@ -169,7 +172,7 @@ export default function AlertsPage() {
   const safeFormatDate = (dateStr: string | undefined) => {
     if (!dateStr) return "N/A";
     try {
-      const date = new Date(dateStr);
+      const date = parseUTCDate(dateStr);
       if (isNaN(date.getTime())) return dateStr;
       return format(date, "PPp");
     } catch {
