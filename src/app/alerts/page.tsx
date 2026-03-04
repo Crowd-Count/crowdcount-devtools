@@ -128,7 +128,7 @@ export default function AlertsPage() {
         title,
         body,
         alert_type: alertType as Alert["alert_type"],
-        expires: format(expiryDate, "yyyy-MM-dd HH:mm:ss"),
+        expires: expiryDate.toISOString().replace("T", " ").slice(0, 19),
         min_app_version: targetingMode === "version" && minVersion ? minVersion : undefined,
         max_app_version: targetingMode === "version" && maxVersion ? maxVersion : undefined,
       });
