@@ -5,13 +5,6 @@ import { api } from "@/lib/api";
 import type { StatusCheck } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -21,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Clock, Wifi, WifiOff } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString();
@@ -60,24 +53,20 @@ function UptimeBar({ checks }: { checks: StatusCheck[] }) {
 }
 
 export default function StatusPage() {
-  const [hours, setHours] = useState("24");
-
-  // Fetch data for the selected timeline view
-  const { data, isLoading } = useQuery({
-    queryKey: ["statusHistory", hours],
-    queryFn: () => api.getStatusHistory(Number(hours)),
-    refetchInterval: 60000,
-  });
-
-  // Always fetch 30d of data for the uptime stat cards
-  const { data: fullData } = useQuery({
+  // Fetch 30d of data for uptime stat cards + timeline
+  const { data: fullData, isLoading } = useQuery({
     queryKey: ["statusHistory", "720"],
     queryFn: () => api.getStatusHistory(720),
     refetchInterval: 60000,
   });
 
-  const checks = data?.checks ?? [];
   const allChecks = fullData?.checks ?? [];
+
+  // Timeline bar: last 12 hours only
+  const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+  const checks = allChecks.filter(
+    (c) => new Date(c.timestamp).getTime() >= twelveHoursAgo
+  );
   const latestCheck = checks.length > 0 ? checks[checks.length - 1] : null;
   const isUp = latestCheck?.status === "up";
 
@@ -102,21 +91,7 @@ export default function StatusPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Status</h1>
-        <Select value={hours} onValueChange={setHours}>
-          <SelectTrigger className="w-[140px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">Last 1 hour</SelectItem>
-            <SelectItem value="6">Last 6 hours</SelectItem>
-            <SelectItem value="24">Last 24 hours</SelectItem>
-            <SelectItem value="168">Last 7 days</SelectItem>
-            <SelectItem value="720">Last 30 days</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <h1 className="text-lg font-semibold">Status</h1>
 
       {/* Status + Uptime row */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
@@ -178,7 +153,7 @@ export default function StatusPage() {
 
       {/* Timeline */}
       <Card className="p-3">
-        <p className="text-xs text-muted-foreground mb-2">Timeline</p>
+        <p className="text-xs text-muted-foreground mb-2">Last 12 Hours</p>
         {isLoading ? (
           <div className="h-6 bg-muted animate-pulse rounded" />
         ) : (
