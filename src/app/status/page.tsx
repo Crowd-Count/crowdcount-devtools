@@ -62,23 +62,32 @@ function UptimeBar({ checks }: { checks: StatusCheck[] }) {
 export default function StatusPage() {
   const [hours, setHours] = useState("24");
 
+  // Fetch data for the selected timeline view
   const { data, isLoading } = useQuery({
     queryKey: ["statusHistory", hours],
     queryFn: () => api.getStatusHistory(Number(hours)),
     refetchInterval: 60000,
   });
 
+  // Always fetch 30d of data for the uptime stat cards
+  const { data: fullData } = useQuery({
+    queryKey: ["statusHistory", "720"],
+    queryFn: () => api.getStatusHistory(720),
+    refetchInterval: 60000,
+  });
+
   const checks = data?.checks ?? [];
+  const allChecks = fullData?.checks ?? [];
   const latestCheck = checks.length > 0 ? checks[checks.length - 1] : null;
   const isUp = latestCheck?.status === "up";
 
   const uptimeStats = useMemo(() => {
-    if (!checks.length) return { h24: null, d7: null, d30: null };
+    if (!allChecks.length) return { h24: null, d7: null, d30: null };
 
     const now = Date.now();
     const calc = (ms: number) => {
       const cutoff = new Date(now - ms).toISOString();
-      const relevant = checks.filter((c) => c.timestamp >= cutoff);
+      const relevant = allChecks.filter((c) => c.timestamp >= cutoff);
       if (!relevant.length) return null;
       const up = relevant.filter((c) => c.status === "up").length;
       return Math.round((up / relevant.length) * 10000) / 100;
@@ -87,9 +96,9 @@ export default function StatusPage() {
     return {
       h24: calc(24 * 60 * 60 * 1000),
       d7: calc(7 * 24 * 60 * 60 * 1000),
-      d30: data?.uptime_percent ?? null,
+      d30: fullData?.uptime_percent ?? null,
     };
-  }, [checks, data?.uptime_percent]);
+  }, [allChecks, fullData?.uptime_percent]);
 
   return (
     <div className="space-y-4">
