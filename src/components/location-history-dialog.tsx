@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { HistoryBundleResponse } from "@/lib/api";
 import {
@@ -20,7 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Download, RefreshCw, Plus, Minus } from "lucide-react";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -195,7 +198,7 @@ function processHistoryBundle(
 
 // ── HistoryChart (inline Recharts component) ──
 
-function HistoryChart({ data, dataType }: { data: ChartData[]; dataType: string }) {
+function HistoryChart({ data, dataType, onBarClick }: { data: ChartData[]; dataType: string; onBarClick?: (index: number) => void }) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -233,7 +236,14 @@ function HistoryChart({ data, dataType }: { data: ChartData[]; dataType: string 
               formatter={(value) => <span className="text-sm text-foreground">{value}</span>}
             />
           )}
-          <Bar dataKey="value" name={dataType === "entries" ? "Entries" : "Count"} fill="#3b82f6" radius={[4, 4, 0, 0]}>
+          <Bar
+            dataKey="value"
+            name={dataType === "entries" ? "Entries" : "Count"}
+            fill="#3b82f6"
+            radius={[4, 4, 0, 0]}
+            onClick={onBarClick ? (_: unknown, index: number) => onBarClick(index) : undefined}
+            style={onBarClick ? { cursor: "pointer" } : undefined}
+          >
             {data.map((_, i) => <Cell key={i} fillOpacity={i % 2 === 0 ? 1.0 : 0.85} />)}
           </Bar>
           {hasAverage && (
@@ -320,6 +330,33 @@ export function LocationHistoryDialog({
   const [selectedWeekDate, setSelectedWeekDate] = useState("");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [isDayDownloading, setIsDayDownloading] = useState(false);
+  const [adjustHour, setAdjustHour] = useState<number | null>(null);
+  const [adjustValue, setAdjustValue] = useState("");
+  const [adjustDevice, setAdjustDevice] = useState(deviceIds.length === 1 ? deviceIds[0] : "");
+
+  const queryClient = useQueryClient();
+
+  const adjustMutation = useMutation({
+    mutationFn: async (params: { mode: "increment" | "decrement" | "set"; value: number }) => {
+      if (adjustHour === null || !adjustDevice) throw new Error("Missing hour or device");
+      return api.adjustLocationEntries({
+        device_id: adjustDevice,
+        location_id: locationId,
+        date: effectiveDate,
+        hour: adjustHour,
+        mode: params.mode,
+        value: params.value,
+      });
+    },
+    onSuccess: (result) => {
+      toast.success(`Entries adjusted: ${result.previous_value} → ${result.new_value}`);
+      queryClient.invalidateQueries({ queryKey: ["locationHistoryBundle", locationId] });
+      setAdjustValue("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   // Fetch available dates
   const { data: availableDates = [], isLoading: isLoadingDates } = useQuery({
@@ -455,7 +492,92 @@ export function LocationHistoryDialog({
                           <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       ) : (
-                        <HistoryChart data={dayData} dataType={dataType} />
+                        <HistoryChart
+                          data={dayData}
+                          dataType={dataType}
+                          onBarClick={dataType === "entries" ? (index) => {
+                            setAdjustHour(index);
+                            setAdjustValue("");
+                            if (deviceIds.length === 1) setAdjustDevice(deviceIds[0]);
+                          } : undefined}
+                        />
+                      )}
+
+                      {/* Adjustment panel */}
+                      {dataType === "entries" && adjustHour !== null && (
+                        <div className="mt-4 border rounded-lg p-4 space-y-3 bg-muted/30">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium">
+                              Adjust entries for {adjustHour}:00 &ndash; {adjustHour}:59 on {effectiveDate}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setAdjustHour(null)}
+                              className="text-muted-foreground"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+
+                          <p className="text-xs text-muted-foreground">
+                            Current value: {dayData[adjustHour]?.value ?? 0}
+                          </p>
+
+                          {deviceIds.length > 1 && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">Device to adjust</Label>
+                              <Select value={adjustDevice} onValueChange={setAdjustDevice}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select a device" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {deviceIds.map((id) => (
+                                    <SelectItem key={id} value={id}>{id}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1 space-y-1">
+                              <Label className="text-xs">Amount</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={adjustValue}
+                                onChange={(e) => setAdjustValue(e.target.value)}
+                                placeholder="Enter value"
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
+                              onClick={() => adjustMutation.mutate({ mode: "increment", value: parseInt(adjustValue) })}
+                              title="Increment"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
+                              onClick={() => adjustMutation.mutate({ mode: "decrement", value: parseInt(adjustValue) })}
+                              title="Decrement"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="default"
+                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
+                              onClick={() => adjustMutation.mutate({ mode: "set", value: parseInt(adjustValue) })}
+                            >
+                              {adjustMutation.isPending ? "Saving..." : "Set to"}
+                            </Button>
+                          </div>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
