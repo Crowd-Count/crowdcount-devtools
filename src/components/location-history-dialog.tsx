@@ -336,16 +336,19 @@ export function LocationHistoryDialog({
 
   const queryClient = useQueryClient();
 
+  // Convert local hour + local date to UTC hour + UTC date
+  function localHourToUtc(localDate: string, localHour: number) {
+    const { utcMinutesAtMidnight, utcDate1, utcDate2 } = getLocalDayUTCBounds(localDate);
+    const totalUtcMinutes = localHour * 60 + utcMinutesAtMidnight;
+    const utcHour = Math.floor(totalUtcMinutes / 60) % 24;
+    const isNextUtcDay = totalUtcMinutes >= 24 * 60;
+    return { utcDate: isNextUtcDay ? utcDate2 : utcDate1, utcHour };
+  }
+
   const adjustMutation = useMutation({
-    mutationFn: async (params: { mode: "set"; value: number }) => {
+    mutationFn: async (params: { mode: "decrement"; value: number }) => {
       if (adjustHour === null || !adjustDevice) throw new Error("Missing hour or device");
-      // Convert local hour + local date to UTC hour + UTC date
-      const { utcMinutesAtMidnight } = getLocalDayUTCBounds(effectiveDate);
-      const totalUtcMinutes = adjustHour * 60 + utcMinutesAtMidnight;
-      const utcHour = Math.floor(totalUtcMinutes / 60) % 24;
-      const isNextUtcDay = totalUtcMinutes >= 24 * 60;
-      const { utcDate1, utcDate2 } = getLocalDayUTCBounds(effectiveDate);
-      const utcDate = isNextUtcDay ? utcDate2 : utcDate1;
+      const { utcDate, utcHour } = localHourToUtc(effectiveDate, adjustHour);
       return api.adjustLocationEntries({
         device_id: adjustDevice,
         location_id: locationId,
@@ -358,6 +361,7 @@ export function LocationHistoryDialog({
     onSuccess: (result) => {
       toast.success(`Entries adjusted: ${result.previous_value} → ${result.new_value}`);
       queryClient.invalidateQueries({ queryKey: ["locationHistoryBundle", locationId] });
+      queryClient.invalidateQueries({ queryKey: ["locationDeviceHourEntries", locationId] });
       setAdjustValue("");
     },
     onError: (error: Error) => {
@@ -381,6 +385,18 @@ export function LocationHistoryDialog({
   const effectiveWeekDate = selectedWeekDate && availableDates.includes(selectedWeekDate) ? selectedWeekDate : latestDate;
   const availableYears = getAvailableYears(availableDates);
   const effectiveYear = availableYears.includes(selectedYear) ? selectedYear : availableYears[0] || new Date().getFullYear().toString();
+
+  // Per-device entry counts for the selected hour (multi-device locations only)
+  const { data: deviceHourEntries } = useQuery({
+    queryKey: ["locationDeviceHourEntries", locationId, effectiveDate, adjustHour],
+    queryFn: async () => {
+      if (adjustHour === null) return {};
+      const { utcDate, utcHour } = localHourToUtc(effectiveDate, adjustHour);
+      const result = await api.getLocationDeviceHourEntries(locationId, utcDate, utcHour);
+      return result.entries_by_device;
+    },
+    enabled: open && adjustHour !== null && deviceIds.length > 1,
+  });
 
   // Fetch history bundle
   const { data: historyCharts, isLoading: isLoadingHistory } = useQuery({
@@ -546,7 +562,9 @@ export function LocationHistoryDialog({
                                 </SelectTrigger>
                                 <SelectContent>
                                   {deviceIds.map((id) => (
-                                    <SelectItem key={id} value={id}>{id}</SelectItem>
+                                    <SelectItem key={id} value={id}>
+                                      {id} ({deviceHourEntries?.[id] ?? "..."} entries at this time)
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -556,21 +574,21 @@ export function LocationHistoryDialog({
                           {adjustHour !== null && (
                             <div className="flex items-end gap-2">
                               <div className="flex-1 space-y-1">
-                                <Label className="text-xs">New entry count</Label>
+                                <Label className="text-xs">Entries to remove</Label>
                                 <Input
                                   type="number"
-                                  min="0"
+                                  min="1"
                                   value={adjustValue}
                                   onChange={(e) => setAdjustValue(e.target.value)}
-                                  placeholder="Enter value"
+                                  placeholder="Number to subtract"
                                 />
                               </div>
                               <Button
                                 variant="default"
                                 disabled={adjustValue === "" || !adjustDevice || adjustMutation.isPending}
-                                onClick={() => adjustMutation.mutate({ mode: "set", value: parseInt(adjustValue) })}
+                                onClick={() => adjustMutation.mutate({ mode: "decrement", value: parseInt(adjustValue) })}
                               >
-                                {adjustMutation.isPending ? "Saving..." : "Set"}
+                                {adjustMutation.isPending ? "Removing..." : "Remove"}
                               </Button>
                             </div>
                           )}

@@ -763,7 +763,7 @@ class CrowdCountAPI {
     location_id: string;
     date: string;
     hour: number;
-    mode: "increment" | "decrement" | "set";
+    mode: "decrement";
     value: number;
   }): Promise<{
     success: boolean;
@@ -773,6 +773,17 @@ class CrowdCountAPI {
     message?: string;
   }> {
     return this.authFetch("/admin/adjust_location_entries", params, true);
+  }
+
+  // Per-device hourly entry breakdown
+  async getLocationDeviceHourEntries(locationId: string, date: string, hour: number): Promise<{
+    entries_by_device: Record<string, number>;
+  }> {
+    return this.authFetch("/admin/location_device_hour_entries", {
+      location_id: locationId,
+      date,
+      hour,
+    });
   }
 
   // Data Reset
