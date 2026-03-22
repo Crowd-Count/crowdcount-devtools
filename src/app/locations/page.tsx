@@ -116,12 +116,14 @@ export default function LocationsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (location: Location) =>
-      api.deleteLocation(location.location_id),
+    mutationFn: (location: Location) => {
+      const deviceIds = location.devices.map((d) => d[0]);
+      return api.updateLocation(location.location_id, deviceIds, { on_map: false });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locationsWithData"] });
       queryClient.invalidateQueries({ queryKey: ["locations"] });
-      toast.success("Location removed");
+      toast.success("Location removed from map");
     },
     onError: (error: Error) => {
       toast.error(error.message);

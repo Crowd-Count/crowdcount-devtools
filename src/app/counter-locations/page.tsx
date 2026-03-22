@@ -406,10 +406,10 @@ function LocationRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["closingTime", location.location_id] });
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
-      toast.success("Closing time schedule saved");
+      toast.success("Operating hours saved");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to set closing time: ${error.message}`);
+      toast.error(`Failed to set operating hours: ${error.message}`);
     },
   });
 
@@ -418,10 +418,10 @@ function LocationRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["closingTime", location.location_id] });
       queryClient.invalidateQueries({ queryKey: ["allLocationsEnriched"] });
-      toast.success("Closing time schedule removed");
+      toast.success("Operating hours removed");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete closing time: ${error.message}`);
+      toast.error(`Failed to delete operating hours: ${error.message}`);
     },
   });
 
@@ -751,14 +751,14 @@ function LocationRow({
               size="icon"
               className="h-8 w-8"
               onClick={(e) => { e.stopPropagation(); setClosingTimeOpen(true); }}
-              title="Closing Time"
+              title="Operating Hours"
             >
               <Moon className="h-4 w-4" />
             </Button>
             <Dialog open={closingTimeOpen} onOpenChange={setClosingTimeOpen}>
               <DialogContent className="max-w-md" onClick={(e) => e.stopPropagation()}>
                 <DialogHeader>
-                  <DialogTitle>Closing Time Schedule</DialogTitle>
+                  <DialogTitle>Operating Hours</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   {closingTimeLoading ? (
@@ -781,24 +781,25 @@ function LocationRow({
                             <span className="text-sm font-medium w-8">{dayName}</span>
                             {closingDays[i].enabled ? (
                               <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-muted-foreground">Open</span>
                                 <Input
                                   type="time"
-                                  className="h-7 w-[110px] text-xs"
-                                  value={padTime(closingDays[i].closeHour, closingDays[i].closeMinute)}
-                                  onChange={(e) => {
-                                    const [h, m] = parseTime(e.target.value);
-                                    updateClosingDay(i, { closeHour: h, closeMinute: m });
-                                  }}
-                                  step={60}
-                                />
-                                <span className="text-muted-foreground text-xs">→</span>
-                                <Input
-                                  type="time"
-                                  className="h-7 w-[110px] text-xs"
+                                  className="h-7 w-[100px] text-xs"
                                   value={padTime(closingDays[i].openHour, closingDays[i].openMinute)}
                                   onChange={(e) => {
                                     const [h, m] = parseTime(e.target.value);
                                     updateClosingDay(i, { openHour: h, openMinute: m });
+                                  }}
+                                  step={60}
+                                />
+                                <span className="text-xs text-muted-foreground">Close</span>
+                                <Input
+                                  type="time"
+                                  className="h-7 w-[100px] text-xs"
+                                  value={padTime(closingDays[i].closeHour, closingDays[i].closeMinute)}
+                                  onChange={(e) => {
+                                    const [h, m] = parseTime(e.target.value);
+                                    updateClosingDay(i, { closeHour: h, closeMinute: m });
                                   }}
                                   step={60}
                                 />
