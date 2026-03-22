@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, RefreshCw, Plus, Minus } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -337,13 +337,20 @@ export function LocationHistoryDialog({
   const queryClient = useQueryClient();
 
   const adjustMutation = useMutation({
-    mutationFn: async (params: { mode: "increment" | "decrement" | "set"; value: number }) => {
+    mutationFn: async (params: { mode: "set"; value: number }) => {
       if (adjustHour === null || !adjustDevice) throw new Error("Missing hour or device");
+      // Convert local hour + local date to UTC hour + UTC date
+      const { utcMinutesAtMidnight } = getLocalDayUTCBounds(effectiveDate);
+      const totalUtcMinutes = adjustHour * 60 + utcMinutesAtMidnight;
+      const utcHour = Math.floor(totalUtcMinutes / 60) % 24;
+      const isNextUtcDay = totalUtcMinutes >= 24 * 60;
+      const { utcDate1, utcDate2 } = getLocalDayUTCBounds(effectiveDate);
+      const utcDate = isNextUtcDay ? utcDate2 : utcDate1;
       return api.adjustLocationEntries({
         device_id: adjustDevice,
         location_id: locationId,
-        date: effectiveDate,
-        hour: adjustHour,
+        date: utcDate,
+        hour: utcHour,
         mode: params.mode,
         value: params.value,
       });
@@ -504,25 +511,31 @@ export function LocationHistoryDialog({
                       )}
 
                       {/* Adjustment panel */}
-                      {dataType === "entries" && adjustHour !== null && (
+                      {dataType === "entries" && (
                         <div className="mt-4 border rounded-lg p-4 space-y-3 bg-muted/30">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">
-                              Adjust entries for {adjustHour}:00 &ndash; {adjustHour}:59 on {effectiveDate}
-                            </p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setAdjustHour(null)}
-                              className="text-muted-foreground"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
+                          <p className="text-sm font-medium">Adjust entries for {effectiveDate}</p>
 
-                          <p className="text-xs text-muted-foreground">
-                            Current value: {dayData[adjustHour]?.value ?? 0}
-                          </p>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Hour</Label>
+                            <Select
+                              value={adjustHour !== null ? adjustHour.toString() : ""}
+                              onValueChange={(v) => {
+                                setAdjustHour(parseInt(v));
+                                setAdjustValue("");
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select an hour" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 24 }, (_, h) => (
+                                  <SelectItem key={h} value={h.toString()}>
+                                    {h}:00 &ndash; {h}:59 (current: {dayData[h]?.value ?? 0})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
 
                           {deviceIds.length > 1 && (
                             <div className="space-y-1">
@@ -540,43 +553,27 @@ export function LocationHistoryDialog({
                             </div>
                           )}
 
-                          <div className="flex items-end gap-2">
-                            <div className="flex-1 space-y-1">
-                              <Label className="text-xs">Amount</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={adjustValue}
-                                onChange={(e) => setAdjustValue(e.target.value)}
-                                placeholder="Enter value"
-                              />
+                          {adjustHour !== null && (
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs">New entry count</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={adjustValue}
+                                  onChange={(e) => setAdjustValue(e.target.value)}
+                                  placeholder="Enter value"
+                                />
+                              </div>
+                              <Button
+                                variant="default"
+                                disabled={adjustValue === "" || !adjustDevice || adjustMutation.isPending}
+                                onClick={() => adjustMutation.mutate({ mode: "set", value: parseInt(adjustValue) })}
+                              >
+                                {adjustMutation.isPending ? "Saving..." : "Set"}
+                              </Button>
                             </div>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
-                              onClick={() => adjustMutation.mutate({ mode: "increment", value: parseInt(adjustValue) })}
-                              title="Increment"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
-                              onClick={() => adjustMutation.mutate({ mode: "decrement", value: parseInt(adjustValue) })}
-                              title="Decrement"
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="default"
-                              disabled={!adjustValue || !adjustDevice || adjustMutation.isPending}
-                              onClick={() => adjustMutation.mutate({ mode: "set", value: parseInt(adjustValue) })}
-                            >
-                              {adjustMutation.isPending ? "Saving..." : "Set to"}
-                            </Button>
-                          </div>
+                          )}
                         </div>
                       )}
                     </CardContent>
