@@ -30,6 +30,7 @@ export interface Location {
   created_at: string;
   updated_at: string;
   is_closed?: boolean;
+  has_pos?: boolean;
 }
 
 export interface EnrichedLocation extends Omit<Location, "devices"> {

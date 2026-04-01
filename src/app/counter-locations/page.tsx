@@ -353,6 +353,11 @@ function LocationRow({
                 closed
               </Badge>
             )}
+            {location.has_pos && (
+              <Badge variant="outline" className="text-xs text-blue-500 border-blue-500/30 bg-blue-500/10">
+                POS integrated
+              </Badge>
+            )}
           </div>
         </TableCell>
         <TableCell>
