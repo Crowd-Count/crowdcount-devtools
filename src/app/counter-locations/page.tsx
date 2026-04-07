@@ -789,6 +789,11 @@ export default function CounterLocationsPage() {
     refetchInterval: 5000,
   });
 
+  const { data: allDevices } = useQuery({
+    queryKey: ["allDevices"],
+    queryFn: () => api.getAllDevices(),
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const validCounters = counters.filter((c) => c.id.trim() !== "");
@@ -900,6 +905,7 @@ export default function CounterLocationsPage() {
     setName("");
     setOvercrowdingLimit("");
     setCounters([{ id: "", label: "" }]);
+    setDeviceSearchQuery("");
   }
 
   function openEditDialog(location: EnrichedLocation) {
@@ -915,13 +921,9 @@ export default function CounterLocationsPage() {
     setIsOpen(true);
   }
 
-  function addCounter() {
-    setCounters([...counters, { id: "", label: "" }]);
-  }
-
   function removeCounter(index: number) {
-    if (counters.length <= 1) return;
-    setCounters(counters.filter((_, i) => i !== index));
+    const updated = counters.filter((_, i) => i !== index);
+    setCounters(updated.length === 0 ? [{ id: "", label: "" }] : updated);
   }
 
   function updateCounter(index: number, field: "id" | "label", value: string) {
@@ -932,6 +934,15 @@ export default function CounterLocationsPage() {
 
   const isAutoEdit = isEditing && editingLocation?.is_auto;
   const hasValidCounters = counters.some((c) => c.id.trim() !== "");
+  const [deviceSearchQuery, setDeviceSearchQuery] = useState("");
+
+  const selectedDeviceIds = new Set(counters.map((c) => c.id).filter(Boolean));
+  const availableDevices = (allDevices ?? []).filter(
+    (d) => !selectedDeviceIds.has(d.device_id)
+  );
+  const filteredAvailableDevices = availableDevices.filter((d) =>
+    !deviceSearchQuery.trim() || d.device_id.toLowerCase().includes(deviceSearchQuery.toLowerCase())
+  );
 
   const filteredLocations = (locations ?? []).filter((loc) => {
     if (!searchQuery.trim()) return true;
@@ -990,20 +1001,7 @@ export default function CounterLocationsPage() {
 
               {/* Counters Section */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Counters</Label>
-                  {!isAutoEdit && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addCounter}
-                    >
-                      <Plus className="mr-1 h-3 w-3" />
-                      Add Counter
-                    </Button>
-                  )}
-                </div>
+                <Label>Counters</Label>
 
                 {isAutoEdit && (
                   <p className="text-xs text-muted-foreground">
@@ -1011,50 +1009,99 @@ export default function CounterLocationsPage() {
                   </p>
                 )}
 
-                {counters.map((counter, index) => (
-                  <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-3 border rounded-lg">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Counter ID
-                      </Label>
+                {/* Selected devices with label inputs */}
+                {counters.filter((c) => c.id.trim()).length > 0 && (
+                  <div className="space-y-2">
+                    {counters.filter((c) => c.id.trim()).map((counter) => (
+                      <div key={counter.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 p-3 border rounded-lg">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Device ID</Label>
+                          <p className="text-sm font-mono pt-1">{counter.id}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Label (optional)</Label>
+                          <Input
+                            value={counter.label}
+                            onChange={(e) => {
+                              const idx = counters.findIndex((c) => c.id === counter.id);
+                              if (idx !== -1) updateCounter(idx, "label", e.target.value);
+                            }}
+                            placeholder="e.g., Main Entrance"
+                            disabled={!!isAutoEdit}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          {!isAutoEdit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const idx = counters.findIndex((c) => c.id === counter.id);
+                                if (idx !== -1) removeCounter(idx);
+                              }}
+                              className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Device picker */}
+                {!isAutoEdit && (
+                  <div className="border rounded-lg p-3 space-y-2">
+                    <Label className="text-xs text-muted-foreground">Add devices</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
-                        value={counter.id}
-                        onChange={(e) => updateCounter(index, "id", e.target.value)}
-                        placeholder="e.g., T1234"
-                        disabled={!!isAutoEdit}
+                        placeholder="Search devices..."
+                        value={deviceSearchQuery}
+                        onChange={(e) => setDeviceSearchQuery(e.target.value)}
+                        className="pl-8"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        Label (optional)
-                      </Label>
-                      <Input
-                        value={counter.label}
-                        onChange={(e) => updateCounter(index, "label", e.target.value)}
-                        placeholder="e.g., Main Entrance"
-                        disabled={!!isAutoEdit}
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      {!isAutoEdit && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeCounter(index)}
-                          disabled={counters.length <= 1}
-                          className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    <div className="max-h-40 overflow-y-auto space-y-1">
+                      {filteredAvailableDevices.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2 text-center">
+                          {availableDevices.length === 0 && (allDevices ?? []).length === 0
+                            ? "No devices found. Create devices in the Devices tab first."
+                            : availableDevices.length === 0
+                              ? "All devices have been added."
+                              : "No devices match your search."}
+                        </p>
+                      ) : (
+                        filteredAvailableDevices.map((device) => (
+                          <button
+                            key={device.device_id}
+                            type="button"
+                            className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded hover:bg-accent text-sm font-mono"
+                            onClick={() => {
+                              setCounters((prev) => {
+                                // Replace the empty placeholder if it exists, otherwise append
+                                const hasEmptyPlaceholder = prev.length === 1 && prev[0].id.trim() === "";
+                                if (hasEmptyPlaceholder) {
+                                  return [{ id: device.device_id, label: "" }];
+                                }
+                                return [...prev, { id: device.device_id, label: "" }];
+                              });
+                            }}
+                          >
+                            <Plus className="h-3 w-3 text-muted-foreground" />
+                            {device.device_id}
+                          </button>
+                        ))
                       )}
                     </div>
                   </div>
-                ))}
+                )}
 
-                {!isAutoEdit && counters.length > 1 && (
+                {!isAutoEdit && counters.filter((c) => c.id.trim()).length > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    {counters.filter((c) => c.id.trim()).length} counter{counters.filter((c) => c.id.trim()).length !== 1 ? "s" : ""} total. Counts will be aggregated for this location.
+                    {counters.filter((c) => c.id.trim()).length} counters total. Counts will be aggregated for this location.
                   </p>
                 )}
               </div>
