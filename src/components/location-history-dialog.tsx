@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { HistoryBundleResponse } from "@/lib/api";
 import {
@@ -20,7 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Download, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -195,7 +198,7 @@ function processHistoryBundle(
 
 // ── HistoryChart (inline Recharts component) ──
 
-function HistoryChart({ data, dataType }: { data: ChartData[]; dataType: string }) {
+function HistoryChart({ data, dataType, onBarClick }: { data: ChartData[]; dataType: string; onBarClick?: (index: number) => void }) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -233,7 +236,14 @@ function HistoryChart({ data, dataType }: { data: ChartData[]; dataType: string 
               formatter={(value) => <span className="text-sm text-foreground">{value}</span>}
             />
           )}
-          <Bar dataKey="value" name={dataType === "entries" ? "Entries" : "Count"} fill="#3b82f6" radius={[4, 4, 0, 0]}>
+          <Bar
+            dataKey="value"
+            name={dataType === "entries" ? "Entries" : "Count"}
+            fill="#3b82f6"
+            radius={[4, 4, 0, 0]}
+            onClick={onBarClick ? (_: unknown, index: number) => onBarClick(index) : undefined}
+            style={onBarClick ? { cursor: "pointer" } : undefined}
+          >
             {data.map((_, i) => <Cell key={i} fillOpacity={i % 2 === 0 ? 1.0 : 0.85} />)}
           </Bar>
           {hasAverage && (
@@ -320,6 +330,44 @@ export function LocationHistoryDialog({
   const [selectedWeekDate, setSelectedWeekDate] = useState("");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [isDayDownloading, setIsDayDownloading] = useState(false);
+  const [adjustHour, setAdjustHour] = useState<number | null>(null);
+  const [adjustValue, setAdjustValue] = useState("");
+  const [adjustDevice, setAdjustDevice] = useState(deviceIds.length === 1 ? deviceIds[0] : "");
+
+  const queryClient = useQueryClient();
+
+  // Convert local hour + local date to UTC hour + UTC date
+  function localHourToUtc(localDate: string, localHour: number) {
+    const { utcMinutesAtMidnight, utcDate1, utcDate2 } = getLocalDayUTCBounds(localDate);
+    const totalUtcMinutes = localHour * 60 + utcMinutesAtMidnight;
+    const utcHour = Math.floor(totalUtcMinutes / 60) % 24;
+    const isNextUtcDay = totalUtcMinutes >= 24 * 60;
+    return { utcDate: isNextUtcDay ? utcDate2 : utcDate1, utcHour };
+  }
+
+  const adjustMutation = useMutation({
+    mutationFn: async (params: { mode: "decrement"; value: number }) => {
+      if (adjustHour === null || !adjustDevice) throw new Error("Missing hour or device");
+      const { utcDate, utcHour } = localHourToUtc(effectiveDate, adjustHour);
+      return api.adjustLocationEntries({
+        device_id: adjustDevice,
+        location_id: locationId,
+        date: utcDate,
+        hour: utcHour,
+        mode: params.mode,
+        value: params.value,
+      });
+    },
+    onSuccess: (result) => {
+      toast.success(`Entries adjusted: ${result.previous_value} → ${result.new_value}`);
+      queryClient.invalidateQueries({ queryKey: ["locationHistoryBundle", locationId] });
+      queryClient.invalidateQueries({ queryKey: ["locationDeviceHourEntries", locationId] });
+      setAdjustValue("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
 
   // Fetch available dates
   const { data: availableDates = [], isLoading: isLoadingDates } = useQuery({
@@ -337,6 +385,18 @@ export function LocationHistoryDialog({
   const effectiveWeekDate = selectedWeekDate && availableDates.includes(selectedWeekDate) ? selectedWeekDate : latestDate;
   const availableYears = getAvailableYears(availableDates);
   const effectiveYear = availableYears.includes(selectedYear) ? selectedYear : availableYears[0] || new Date().getFullYear().toString();
+
+  // Per-device entry counts for the selected hour (multi-device locations only)
+  const { data: deviceHourEntries } = useQuery({
+    queryKey: ["locationDeviceHourEntries", locationId, effectiveDate, adjustHour],
+    queryFn: async () => {
+      if (adjustHour === null) return {};
+      const { utcDate, utcHour } = localHourToUtc(effectiveDate, adjustHour);
+      const result = await api.getLocationDeviceHourEntries(locationId, utcDate, utcHour);
+      return result.entries_by_device;
+    },
+    enabled: open && adjustHour !== null && deviceIds.length > 1,
+  });
 
   // Fetch history bundle
   const { data: historyCharts, isLoading: isLoadingHistory } = useQuery({
@@ -455,7 +515,84 @@ export function LocationHistoryDialog({
                           <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       ) : (
-                        <HistoryChart data={dayData} dataType={dataType} />
+                        <HistoryChart
+                          data={dayData}
+                          dataType={dataType}
+                          onBarClick={dataType === "entries" ? (index) => {
+                            setAdjustHour(index);
+                            setAdjustValue("");
+                            if (deviceIds.length === 1) setAdjustDevice(deviceIds[0]);
+                          } : undefined}
+                        />
+                      )}
+
+                      {/* Adjustment panel */}
+                      {dataType === "entries" && (
+                        <div className="mt-4 border rounded-lg p-4 space-y-3 bg-muted/30">
+                          <p className="text-sm font-medium">Adjust entries for {effectiveDate}</p>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs">Hour</Label>
+                            <Select
+                              value={adjustHour !== null ? adjustHour.toString() : ""}
+                              onValueChange={(v) => {
+                                setAdjustHour(parseInt(v));
+                                setAdjustValue("");
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select an hour" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 24 }, (_, h) => (
+                                  <SelectItem key={h} value={h.toString()}>
+                                    {h}:00 &ndash; {h}:59 (current: {dayData[h]?.value ?? 0})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {deviceIds.length > 1 && (
+                            <div className="space-y-1">
+                              <Label className="text-xs">Device to adjust</Label>
+                              <Select value={adjustDevice} onValueChange={setAdjustDevice}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select a device" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {deviceIds.map((id) => (
+                                    <SelectItem key={id} value={id}>
+                                      {id} ({deviceHourEntries?.[id] ?? "..."} entries at this time)
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {adjustHour !== null && (
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1 space-y-1">
+                                <Label className="text-xs">Entries to remove</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={adjustValue}
+                                  onChange={(e) => setAdjustValue(e.target.value)}
+                                  placeholder="Number to subtract"
+                                />
+                              </div>
+                              <Button
+                                variant="default"
+                                disabled={adjustValue === "" || !adjustDevice || adjustMutation.isPending}
+                                onClick={() => adjustMutation.mutate({ mode: "decrement", value: parseInt(adjustValue) })}
+                              >
+                                {adjustMutation.isPending ? "Removing..." : "Remove"}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </CardContent>
                   </Card>

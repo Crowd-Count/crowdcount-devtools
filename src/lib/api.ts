@@ -742,6 +742,50 @@ class CrowdCountAPI {
     return result.texts || [];
   }
 
+  // Offline Sync
+  async adjustCountsWithTimestamp(deviceId: string, data: { timestamp: string; count: number; entries: number }[]): Promise<{
+    message: string;
+    synced_count: number;
+    affected_dates: string[];
+    affected_locations: string[];
+    current_count: number;
+    current_entries: number;
+  }> {
+    return this.authFetch("/admin/adjust_counts_with_timestamp", {
+      device_id: deviceId,
+      data,
+    }, true);
+  }
+
+  // Entry Adjustment
+  async adjustLocationEntries(params: {
+    device_id: string;
+    location_id: string;
+    date: string;
+    hour: number;
+    mode: "decrement";
+    value: number;
+  }): Promise<{
+    success: boolean;
+    previous_value: number;
+    new_value: number;
+    delta: number;
+    message?: string;
+  }> {
+    return this.authFetch("/admin/adjust_location_entries", params, true);
+  }
+
+  // Per-device hourly entry breakdown
+  async getLocationDeviceHourEntries(locationId: string, date: string, hour: number): Promise<{
+    entries_by_device: Record<string, number>;
+  }> {
+    return this.authFetch("/admin/location_device_hour_entries", {
+      location_id: locationId,
+      date,
+      hour,
+    });
+  }
+
   // Data Reset
   async resetLocationAllData(locationId: string): Promise<{ success: boolean }> {
     return this.authFetch("/admin/reset_location_all_data", { location_id: locationId }, true);

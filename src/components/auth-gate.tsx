@@ -18,7 +18,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState("");
   const [serverStatus, setServerStatus] = useState<"checking" | "online" | "offline">("checking");
   const [isRetrying, setIsRetrying] = useState(false);
+  const [currentEnv, setCurrentEnv] = useState<ApiEnv>("production");
   const { setAdmin, clearAdmin } = useAdmin();
+
+  // Sync environment from localStorage after hydration
+  useEffect(() => {
+    setCurrentEnv(getApiEnv());
+  }, []);
 
   // Check server connectivity on mount
   useEffect(() => {
@@ -138,10 +144,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   {(Object.keys(API_ENVIRONMENTS) as ApiEnv[]).map((env) => (
                     <Button
                       key={env}
-                      variant={getApiEnv() === env ? "default" : "outline"}
+                      variant={currentEnv === env ? "default" : "outline"}
                       size="sm"
                       onClick={() => {
-                        if (env !== getApiEnv()) {
+                        if (env !== currentEnv) {
                           setApiEnv(env);
                         }
                       }}
@@ -207,10 +213,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                 {(Object.keys(API_ENVIRONMENTS) as ApiEnv[]).map((env) => (
                   <Button
                     key={env}
-                    variant={getApiEnv() === env ? "default" : "outline"}
+                    variant={currentEnv === env ? "default" : "outline"}
                     size="sm"
                     onClick={() => {
-                      if (env !== getApiEnv()) {
+                      if (env !== currentEnv) {
                         setApiEnv(env);
                       }
                     }}
