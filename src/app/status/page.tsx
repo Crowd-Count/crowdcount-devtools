@@ -67,7 +67,9 @@ export default function StatusPage() {
     refetchInterval: 60000,
   });
 
-  const allChecks = fullData?.checks ?? [];
+  // Own memo so the uptimeStats memo below can be preserved by the React
+  // Compiler (a fresh `?? []` array each render defeats it).
+  const allChecks = useMemo(() => fullData?.checks ?? [], [fullData]);
 
   // Timeline bar: last 12 hours only
   const twelveHoursAgo = dataUpdatedAt - 12 * 60 * 60 * 1000;
