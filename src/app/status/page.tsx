@@ -54,16 +54,25 @@ function UptimeBar({ checks }: { checks: StatusCheck[] }) {
 
 export default function StatusPage() {
   // Fetch 30d of data for uptime stat cards + timeline
-  const { data: fullData, isLoading } = useQuery({
+  const {
+    data: fullData,
+    isLoading,
+    // Stable per data refresh — used as "now" so render stays pure
+    // (react-hooks/purity forbids Date.now() during render). The query
+    // refetches every 60s, keeping it fresh enough for uptime windows.
+    dataUpdatedAt,
+  } = useQuery({
     queryKey: ["statusHistory", "720"],
     queryFn: () => api.getStatusHistory(720),
     refetchInterval: 60000,
   });
 
-  const allChecks = fullData?.checks ?? [];
+  // Own memo so the uptimeStats memo below can be preserved by the React
+  // Compiler (a fresh `?? []` array each render defeats it).
+  const allChecks = useMemo(() => fullData?.checks ?? [], [fullData]);
 
   // Timeline bar: last 12 hours only
-  const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
+  const twelveHoursAgo = dataUpdatedAt - 12 * 60 * 60 * 1000;
   const checks = allChecks.filter(
     (c) => new Date(c.timestamp).getTime() >= twelveHoursAgo
   );
@@ -73,7 +82,7 @@ export default function StatusPage() {
   const uptimeStats = useMemo(() => {
     if (!allChecks.length) return { h24: null, d7: null, d30: null };
 
-    const now = Date.now();
+    const now = dataUpdatedAt;
     const calc = (ms: number) => {
       const cutoff = new Date(now - ms).toISOString();
       const relevant = allChecks.filter((c) => c.timestamp >= cutoff);
@@ -87,7 +96,7 @@ export default function StatusPage() {
       d7: calc(7 * 24 * 60 * 60 * 1000),
       d30: fullData?.uptime_percent ?? null,
     };
-  }, [allChecks, fullData?.uptime_percent]);
+  }, [allChecks, dataUpdatedAt, fullData?.uptime_percent]);
 
   return (
     <div className="space-y-4">

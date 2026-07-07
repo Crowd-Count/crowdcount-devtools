@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, API_ENVIRONMENTS, getApiEnv, setApiEnv, type ApiEnv } from "@/lib/api";
+
+// Inert subscription: the backing localStorage value only changes via
+// setApiEnv(), which reloads the page — nothing to subscribe to.
+const emptySubscribe = () => () => {};
 import { useAdmin } from "@/lib/admin-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +20,15 @@ import { Save, LogOut, RefreshCw, DollarSign, Loader2, Server } from "lucide-rea
 export default function SettingsPage() {
   const { hasPermission } = useAdmin();
   const canAds = hasPermission("ads");
-  const [currentEnv, setCurrentEnv] = useState<ApiEnv>("staging");
+  const currentEnv = useSyncExternalStore<ApiEnv>(
+    emptySubscribe,
+    getApiEnv,
+    () => "staging",
+  );
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState("30");
-  const [pricePerHour, setPricePerHour] = useState("");
+  // User's in-progress edit; null = not edited yet, show the fetched price.
+  const [pricePerHourInput, setPricePerHourInput] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch current promotion pricing
@@ -29,12 +38,9 @@ export default function SettingsPage() {
     enabled: canAds,
   });
 
-  // Update price per hour input when pricing data is loaded
-  useEffect(() => {
-    if (pricing?.price_per_hour !== undefined) {
-      setPricePerHour(pricing.price_per_hour.toString());
-    }
-  }, [pricing]);
+  const pricePerHour =
+    pricePerHourInput ??
+    (pricing?.price_per_hour !== undefined ? pricing.price_per_hour.toString() : "");
 
   // Mutation for updating pricing
   const updatePricingMutation = useMutation({
@@ -47,10 +53,6 @@ export default function SettingsPage() {
       toast.error(error.message || "Failed to update pricing");
     },
   });
-
-  useEffect(() => {
-    setCurrentEnv(getApiEnv());
-  }, []);
 
   function handleLogout() {
     localStorage.removeItem("crowdcount_admin_password");
@@ -139,7 +141,7 @@ export default function SettingsPage() {
                           id="pricePerHour"
                           type="number"
                           value={pricePerHour}
-                          onChange={(e) => setPricePerHour(e.target.value)}
+                          onChange={(e) => setPricePerHourInput(e.target.value)}
                           className="pl-7"
                           placeholder="5.00"
                           min="0.01"
