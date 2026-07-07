@@ -127,10 +127,14 @@ export function MobileHeader() {
     return item.permission === null || hasPermission(item.permission);
   });
 
-  // Close sheet on navigation
-  useEffect(() => {
+  // Close sheet on navigation — the React-sanctioned setState-during-render
+  // adjustment (avoids react-hooks/set-state-in-effect and a wasted repaint
+  // of the still-open sheet before the effect ran).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <div className="md:hidden flex items-center h-14 border-b bg-card px-4 gap-3">
