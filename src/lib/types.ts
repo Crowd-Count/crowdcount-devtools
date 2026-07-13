@@ -8,6 +8,22 @@ export interface Device {
   is_updated?: boolean; // true = matches target, false = not updated (outdated or no version reported)
 }
 
+// Rich per-device health with the two liveness signals kept distinct:
+//  - heartbeat_* : direct device->API heartbeat ("powered on & reaching the cloud")
+//  - stream_status : counter-server's last-reported streaming flag ("RTSP being received")
+// `online` is the recency-based liveness (fresh heartbeat OR fresh version report).
+export interface DeviceHealth {
+  device_id: string;
+  online: boolean;
+  heartbeat_last_seen: number | null;
+  heartbeat_age_seconds: number | null;
+  version_updated_at: number | null;
+  version_age_seconds: number | null;
+  commit_hash: string | null;
+  stream_status: "online" | "offline" | null;
+  is_updated?: boolean;
+}
+
 // Server returns devices as [device_id, label] tuples
 export type LocationDevice = [string, string];
 
