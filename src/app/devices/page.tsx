@@ -455,7 +455,7 @@ export default function DevicesPage() {
                         <Badge
                           variant={device.stream_status === "online" ? "default" : "secondary"}
                           className={device.stream_status === "online" ? "bg-blue-500" : ""}
-                          title="Counter-server's last-reported streaming state (RTSP → MediaMTX)"
+                          title={`Counter-server RTSP status · last keepalive ${fmtAge(device.stream_age_seconds)}`}
                         >
                           <Radio className="mr-1 h-3 w-3" />
                           {device.stream_status === "online" ? "streaming" : "idle"}

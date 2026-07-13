@@ -21,6 +21,8 @@ export interface DeviceHealth {
   version_age_seconds: number | null;
   commit_hash: string | null;
   stream_status: "online" | "offline" | null;
+  stream_updated_at: number | null;
+  stream_age_seconds: number | null;
   is_updated?: boolean;
 }
 
