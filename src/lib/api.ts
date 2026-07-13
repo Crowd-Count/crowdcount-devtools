@@ -1,4 +1,4 @@
-import type { Alert, Location, EnrichedLocation, Report, Device, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule, ClosingTimeDay, ClosingTimeSchedule, AdminAccount } from "./types";
+import type { Alert, Location, EnrichedLocation, Report, Device, DeviceHealth, CreateUserResponse, Ad, AdStats, LoginText, DailyLoginText, ResetSchedule, ClosingTimeDay, ClosingTimeSchedule, AdminAccount } from "./types";
 import { signRequest, generateIdempotencyKey } from "./crypto";
 
 export const API_ENVIRONMENTS = {
@@ -204,6 +204,11 @@ class CrowdCountAPI {
       user_id: device_id,  // Compatibility
       status: status as "online" | "offline",
     }));
+  }
+
+  async getDeviceHealth(): Promise<DeviceHealth[]> {
+    const result = await this.authFetch<{ devices: DeviceHealth[] }>("/get_device_health");
+    return result.devices;
   }
 
   async createUsers(count: number = 1): Promise<CreateUserResponse> {

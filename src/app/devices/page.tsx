@@ -37,8 +37,16 @@ import {
 } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu, UserPlus, CheckCircle2, Save } from "lucide-react";
-import type { Device } from "@/lib/types";
+import { Plus, Trash2, Wifi, WifiOff, Copy, Cpu, UserPlus, CheckCircle2, Save, Radio } from "lucide-react";
+import type { DeviceHealth } from "@/lib/types";
+
+function fmtAge(seconds: number | null | undefined): string {
+  if (seconds == null) return "never";
+  if (seconds < 90) return `${Math.round(seconds)}s ago`;
+  if (seconds < 5400) return `${Math.round(seconds / 60)}m ago`;
+  if (seconds < 172800) return `${Math.round(seconds / 3600)}h ago`;
+  return `${Math.round(seconds / 86400)}d ago`;
+}
 
 export default function DevicesPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,8 +62,9 @@ export default function DevicesPage() {
   const queryClient = useQueryClient();
 
   const { data: devices, isLoading } = useQuery({
-    queryKey: ["allDevices"],
-    queryFn: () => api.getAllDevices(),
+    queryKey: ["deviceHealth"],
+    queryFn: () => api.getDeviceHealth(),
+    refetchInterval: 30000,
   });
 
   const { data: versionData } = useQuery({
@@ -78,7 +87,7 @@ export default function DevicesPage() {
   const createMutation = useMutation({
     mutationFn: () => api.createUsers(parseInt(createCount)),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
+      queryClient.invalidateQueries({ queryKey: ["deviceHealth"] });
       queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
       setCreatedUsers(
         (data.users || []).map((u) => ({
@@ -96,7 +105,7 @@ export default function DevicesPage() {
   const createCustomMutation = useMutation({
     mutationFn: () => api.createDeviceWithCredentials(customDeviceId, customPassword),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
+      queryClient.invalidateQueries({ queryKey: ["deviceHealth"] });
       queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
       setCreatedUsers([{ device_id: data.device_id, password: customPassword }]);
       setCustomDeviceId("");
@@ -111,21 +120,9 @@ export default function DevicesPage() {
   const deleteMutation = useMutation({
     mutationFn: (userId: string) => api.deleteUser(userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
+      queryClient.invalidateQueries({ queryKey: ["deviceHealth"] });
       queryClient.invalidateQueries({ queryKey: ["totalDevices"] });
       toast.success("Device deleted");
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: ({ userId, status }: { userId: string; status: "online" | "offline" }) =>
-      api.setDeviceStatus(userId, status),
-    onSuccess: (_, { userId, status }) => {
-      queryClient.invalidateQueries({ queryKey: ["allDevices"] });
-      toast.success(`${userId} set to ${status}`);
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -137,9 +134,9 @@ export default function DevicesPage() {
   const versions = versionData?.versions ?? {};
 
   const trimmedTarget = targetHash?.trim().toLowerCase() || null;
-  const devicesWithVersions: Device[] | undefined = devices?.map((d) => {
-    const ver = versions[d.device_id];
-    const commitHash = ver?.commit_hash ?? null;
+  const devicesWithVersions: DeviceHealth[] | undefined = devices?.map((d) => {
+    // Prefer the commit reported in the health payload; fall back to versions map.
+    const commitHash = d.commit_hash ?? versions[d.device_id]?.commit_hash ?? null;
     // Compare with prefix matching: allow short hashes (e.g. 7-char from git log)
     const isUpdated =
       commitHash && trimmedTarget
@@ -151,11 +148,14 @@ export default function DevicesPage() {
 
   const filteredDevices = devicesWithVersions?.filter((device) => {
     if (filter === "all") return true;
-    return device.status === filter;
+    if (filter === "online") return device.online;
+    return !device.online;
   });
 
-  const onlineCount = devices?.filter((d) => d.status === "online").length || 0;
-  const offlineCount = devices?.filter((d) => d.status === "offline").length || 0;
+  // "Online" is recency-based (heartbeat or version report); "streaming" is the
+  // counter-server's last-reported RTSP state — deliberately shown separately.
+  const onlineCount = devices?.filter((d) => d.online).length || 0;
+  const streamingCount = devices?.filter((d) => d.stream_status === "online").length || 0;
 
   // Version stats
   const updatedCount = devicesWithVersions?.filter((d) => d.is_updated === true).length || 0;
@@ -353,20 +353,22 @@ export default function DevicesPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Online</CardTitle>
+            <CardTitle className="text-sm font-medium">Online (heartbeat)</CardTitle>
             <Wifi className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{onlineCount}</div>
+            <p className="text-xs text-muted-foreground">reaching the API</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Offline</CardTitle>
-            <WifiOff className="h-4 w-4 text-red-500" />
+            <CardTitle className="text-sm font-medium">Streaming</CardTitle>
+            <Radio className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{offlineCount}</div>
+            <div className="text-2xl font-bold text-blue-600">{streamingCount}</div>
+            <p className="text-xs text-muted-foreground">counter-server receiving</p>
           </CardContent>
         </Card>
         <Card>
@@ -413,22 +415,23 @@ export default function DevicesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Device ID</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>API (heartbeat)</TableHead>
+                    <TableHead>Streaming (counter-server)</TableHead>
                     <TableHead>Version</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredDevices.map((device) => (
-                    <TableRow key={device.user_id}>
+                    <TableRow key={device.device_id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <code className="font-medium">{device.user_id}</code>
+                          <code className="font-medium">{device.device_id}</code>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => copyToClipboard(device.user_id || "")}
+                            onClick={() => copyToClipboard(device.device_id || "")}
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
@@ -436,26 +439,26 @@ export default function DevicesPage() {
                       </TableCell>
                       <TableCell>
                         <Badge
-                          variant={device.status === "online" ? "default" : "secondary"}
-                          className={`cursor-pointer transition-colors ${
-                            device.status === "online"
-                              ? "bg-green-500 hover:bg-green-600"
-                              : "hover:bg-muted-foreground/20"
-                          }`}
-                          onClick={() =>
-                            statusMutation.mutate({
-                              userId: device.user_id || "",
-                              status: device.status === "online" ? "offline" : "online",
-                            })
-                          }
-                          title={`Click to set ${device.status === "online" ? "offline" : "online"}`}
+                          variant={device.online ? "default" : "secondary"}
+                          className={device.online ? "bg-green-500" : ""}
+                          title={`heartbeat ${fmtAge(device.heartbeat_age_seconds)} · version ${fmtAge(device.version_age_seconds)}`}
                         >
-                          {device.status === "online" ? (
+                          {device.online ? (
                             <Wifi className="mr-1 h-3 w-3" />
                           ) : (
                             <WifiOff className="mr-1 h-3 w-3" />
                           )}
-                          {device.status}
+                          {device.online ? "online" : "offline"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={device.stream_status === "online" ? "default" : "secondary"}
+                          className={device.stream_status === "online" ? "bg-blue-500" : ""}
+                          title={`Counter-server RTSP status · last keepalive ${fmtAge(device.stream_age_seconds)}`}
+                        >
+                          <Radio className="mr-1 h-3 w-3" />
+                          {device.stream_status === "online" ? "streaming" : "idle"}
                         </Badge>
                       </TableCell>
                       <TableCell>
