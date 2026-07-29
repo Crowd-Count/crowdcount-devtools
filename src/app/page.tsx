@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAdmin } from "@/lib/admin-context";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { AppUsageChart } from "@/components/dashboard/app-usage-chart";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import {
@@ -59,6 +60,8 @@ export default function DashboardPage() {
       </div>
 
       <StatsCards />
+
+      <AppUsageChart />
 
       {/* Login Text & Ads Summary */}
       {(showLoginTexts || showAds) && (
