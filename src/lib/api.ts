@@ -182,6 +182,18 @@ class CrowdCountAPI {
     return result.active_count;
   }
 
+  // App usage over time (concurrent-active samples + daily unique users).
+  // The server samples the live count in the background; this reads the history.
+  async getAppUsageHistory(
+    hours: number = 24,
+    bucketMinutes: number = 5
+  ): Promise<AppUsageHistoryResponse> {
+    return this.authFetch("/app_usage_history", {
+      hours,
+      bucket_minutes: bucketMinutes,
+    });
+  }
+
   async getDeviceCount(status?: "online" | "offline"): Promise<number> {
     const body: Record<string, unknown> = {};
     if (status) {
@@ -1031,6 +1043,32 @@ export interface StatusCheck {
 export interface StatusHistoryResponse {
   checks: StatusCheck[];
   uptime_percent: number | null;
+}
+
+/** One time bucket of concurrent app users. `t` is unix seconds (bucket start). */
+export interface AppUsageSample {
+  t: number;
+  avg: number;
+  peak: number;
+}
+
+export interface AppUsageDaily {
+  day: string; // YYYY-MM-DD (UTC)
+  unique_users: number;
+}
+
+export interface AppUsageSummary {
+  current: number;
+  peak_24h: number | null;
+  avg_24h: number | null;
+  dau_today: number;
+  dau_7d_avg: number | null;
+}
+
+export interface AppUsageHistoryResponse {
+  samples: AppUsageSample[];
+  daily: AppUsageDaily[];
+  summary: AppUsageSummary;
 }
 
 export const api = new CrowdCountAPI();

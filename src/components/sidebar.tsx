@@ -28,6 +28,7 @@ import {
   Clock,
   TimerReset,
   Menu,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { getApiEnv, API_ENVIRONMENTS } from "@/lib/api";
@@ -44,6 +45,7 @@ const navigation: {
   { name: "Map Locations", href: "/locations", icon: MapPin, permission: "locations" },
   { name: "Counter Locations", href: "/counter-locations", icon: LayoutGrid, permission: "locations" },
   { name: "Devices", href: "/devices", icon: Cpu, permission: "devices" },
+  { name: "App Usage", href: "/app-usage", icon: TrendingUp, permission: "devices" },
   { name: "Reports", href: "/reports", icon: MessageSquare, permission: "reports" },
   { name: "Ads", href: "/ads", icon: Megaphone, permission: "ads" },
   { name: "Login Texts", href: "/login-texts", icon: Type, permission: "login_texts" },
